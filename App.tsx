@@ -1,0 +1,801 @@
+
+import React, { useState, useEffect, useRef } from 'react';
+import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_COLORS, BotPersonality, GameMode, RoundHistory } from './types';
+import { Lobby } from './components/Lobby';
+import { GameMasterInput } from './components/GameMasterInput';
+import { PlayerInput } from './components/PlayerInput';
+import { Voting } from './components/Voting';
+import { Resolution } from './components/Resolution';
+import { FinalLeaderboard } from './components/FinalLeaderboard';
+import { Avatar } from './components/ui/Avatar';
+import { Button } from './components/ui/Button';
+import { Peer, DataConnection } from 'peerjs';
+import { GoogleGenAI } from "@google/genai";
+import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2 } from 'lucide-react';
+import { CATEGORIES, QUESTIONS } from './questions';
+
+// --- HELPER ---
+function shuffle<T>(array: T[]): T[] {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+function cleanAnswer(text: string): string {
+  if (!text) return "";
+  // Entfernt einen oder mehrere Punkte am Ende des Strings
+  return text.trim().replace(/\.+$/, "");
+}
+
+function generateRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+const APP_PREFIX = 'nobodyperfect-game-v1-';
+const SESSION_KEY = 'nobodyperfect-session-v1';
+const STATE_RECOVERY_KEY = 'nobodyperfect-last-state';
+const AI_GM_ID = 'AI_GM_HOST';
+const HECKLER_ID = 'TROLL_TORBEN_SPECTATOR';
+
+const PEER_CONFIG = {
+  debug: 1, 
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  },
+};
+
+const INITIAL_STATE: GameState = {
+  players: [],
+  gameMasterId: null,
+  phase: GamePhase.LOBBY,
+  currentRound: 0,
+  question: '',
+  correctAnswerText: '',
+  gmFakeAnswer: '',
+  category: 'words',
+  participantIds: [],
+  submittedAnswers: [],
+  votes: {},
+  revealedAnswerIds: [],
+  awardedBonusIds: [],
+  lastUpdated: 0,
+  isAiGameMasterMode: false,
+  gameMode: 'classic',
+  history: [],
+  finalRoast: null
+};
+
+const App: React.FC = () => {
+  const [localPlayerId, setLocalPlayerId] = useState<string | null>(null);
+  const [isHost, setIsHost] = useState(false);
+  const [roomCode, setRoomCode] = useState<string>('');
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [gameState, setGameState] = useState<GameState>(INITIAL_STATE);
+  const [hasJoinedSuccessfully, setHasJoinedSuccessfully] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  const peerRef = useRef<Peer | null>(null);
+  const connectionsRef = useRef<DataConnection[]>([]);
+  const hostConnectionRef = useRef<DataConnection | null>(null);
+  
+  // Ref für den aktuellen GameState, um "Stale Closures" in PeerJS Callbacks zu vermeiden
+  const gameStateRef = useRef<GameState>(INITIAL_STATE);
+
+  const botProcessingRef = useRef<boolean>(false);
+  const botVotingRef = useRef<boolean>(false);
+  const roastProcessingRef = useRef<boolean>(false);
+
+  // Sync Ref mit State
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  // --- ADMIN SYNC EFFECT ---
+  // Wenn mir im GameState die Rolle "isHost" zugewiesen wird (z.B. durch Host-Migration),
+  // übernehme ich auch lokal die Admin-Rechte.
+  useEffect(() => {
+    if (localPlayerId && gameState.players.length > 0) {
+      const me = gameState.players.find(p => p.id === localPlayerId);
+      if (me?.isHost && !isHost) {
+        setIsHost(true);
+      }
+    }
+  }, [gameState.players, localPlayerId, isHost]);
+
+  // --- PERSISTENCE ---
+  useEffect(() => {
+    if (isHost) {
+      localStorage.setItem(STATE_RECOVERY_KEY, JSON.stringify({ roomCode, state: gameState }));
+    }
+  }, [gameState, isHost, roomCode]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SESSION_KEY);
+    if (saved && !localPlayerId) {
+      try {
+        const { id, roomCode: savedCode, name, avatar, isHost: wasHost } = JSON.parse(saved);
+        if (wasHost) {
+          const recovery = localStorage.getItem(STATE_RECOVERY_KEY);
+          if (recovery) {
+            const { roomCode: rc, state } = JSON.parse(recovery);
+            if (rc === savedCode) {
+              setGameState(state);
+              recreateHost(savedCode, id, name, avatar);
+              return;
+            }
+          }
+          createGame(name, avatar, savedCode, id);
+        } else {
+          joinGame(name, savedCode, avatar, id);
+        }
+      } catch (e) {
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
+  const getAiInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const cleanJsonString = (text: string): string => text.replace(/```json\n?|```/g, '').trim();
+
+  // --- NETWORK ---
+  const broadcastState = (state: GameState) => {
+    connectionsRef.current.forEach(c => {
+      if (c.open) c.send({ type: 'SYNC_STATE', payload: state });
+    });
+  };
+
+  const dispatch = (action: NetworkAction) => {
+    if (isHost) {
+      handleHostAction(action);
+    } else if (hostConnectionRef.current?.open) {
+      hostConnectionRef.current.send(action);
+    }
+  };
+
+  const createGame = (playerName: string, avatar: string, code?: string, existingId?: string) => {
+    setConnectionStatus('connecting');
+    const newCode = code || generateRoomCode();
+    const hostId = existingId || Math.random().toString(36).substr(2, 9);
+    setRoomCode(newCode);
+    setLocalPlayerId(hostId);
+    setIsHost(true);
+    const peer = new Peer(`${APP_PREFIX}${newCode}`, PEER_CONFIG);
+    peerRef.current = peer;
+    peer.on('open', () => {
+      setConnectionStatus('connected');
+      const p: Player = { id: hostId, name: playerName, score: 0, avatar, isHost: true };
+      setGameState(prev => ({ ...prev, players: [p] }));
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: hostId, roomCode: newCode, name: playerName, avatar, isHost: true }));
+    });
+    peer.on('connection', (conn) => {
+      connectionsRef.current.push(conn);
+      conn.on('data', (d) => handleHostAction(d as NetworkAction));
+      // WICHTIG: Nutze gameStateRef.current, um den AKTUELLEN State zu senden, nicht den zum Zeitpunkt der Erstellung
+      setTimeout(() => conn.open && conn.send({ type: 'SYNC_STATE', payload: gameStateRef.current }), 500);
+    });
+  };
+
+  const recreateHost = (code: string, id: string, name: string, avatar: string) => {
+    setConnectionStatus('connecting');
+    setRoomCode(code);
+    setLocalPlayerId(id);
+    setIsHost(true);
+    const peer = new Peer(`${APP_PREFIX}${code}`, PEER_CONFIG);
+    peerRef.current = peer;
+    peer.on('open', () => setConnectionStatus('connected'));
+    peer.on('connection', (conn) => {
+      connectionsRef.current.push(conn);
+      conn.on('data', (d) => handleHostAction(d as NetworkAction));
+      // WICHTIG: Nutze gameStateRef.current
+      setTimeout(() => conn.open && conn.send({ type: 'SYNC_STATE', payload: gameStateRef.current }), 800);
+    });
+  };
+
+  const joinGame = (playerName: string, code: string, avatar: string, existingId?: string) => {
+    setConnectionStatus('connecting');
+    const clientId = existingId || Math.random().toString(36).substr(2, 9);
+    setLocalPlayerId(clientId);
+    setIsHost(false);
+    setRoomCode(code);
+    const peer = new Peer(PEER_CONFIG);
+    peerRef.current = peer;
+    peer.on('open', () => {
+      const conn = peer.connect(`${APP_PREFIX}${code}`, { reliable: true });
+      hostConnectionRef.current = conn;
+      conn.on('open', () => {
+        setConnectionStatus('connected');
+        conn.send({ type: 'JOIN', payload: { id: clientId, name: playerName, score: 0, avatar } });
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ id: clientId, roomCode: code, name: playerName, avatar, isHost: false }));
+      });
+      conn.on('data', (d) => {
+        const action = d as NetworkAction;
+        if (action.type === 'SYNC_STATE') {
+          const me = action.payload.players.find(p => p.id === clientId);
+          if (!me && !isHost && hasJoinedSuccessfully) {
+             localStorage.removeItem(SESSION_KEY);
+             localStorage.removeItem(STATE_RECOVERY_KEY);
+             window.location.reload(); 
+             return;
+          }
+          
+          // SCHUTZ gegen leere Updates: Wenn wir in der Lobby sind und Spieler haben,
+          // akzeptieren wir kein Update, das besagt, es gäbe 0 Spieler (außer bei Reset).
+          if (!isHost && gameStateRef.current.players.length > 0 && action.payload.players.length === 0 && action.payload.phase === GamePhase.LOBBY) {
+              return;
+          }
+
+          setGameState(action.payload);
+          setHasJoinedSuccessfully(true);
+        }
+      });
+    });
+    peer.on('error', () => setConnectionStatus('error'));
+  };
+
+  const leaveSession = () => {
+    if (window.confirm("Willst du das Spiel wirklich verlassen?")) {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(STATE_RECOVERY_KEY);
+      window.location.reload();
+    }
+  };
+
+  // --- REDUCER ---
+  const handleHostAction = (action: NetworkAction) => {
+    setGameState(prevState => {
+      const nextState = processGameReducer(prevState, action);
+      if (nextState !== prevState) broadcastState(nextState);
+      return nextState;
+    });
+  };
+
+  const processGameReducer = (state: GameState, action: NetworkAction): GameState => {
+    switch (action.type) {
+      case 'JOIN': {
+        if (state.players.some(p => p.id === action.payload.id)) return state;
+        return { ...state, players: [...state.players, action.payload] };
+      }
+      case 'REMOVE_PLAYER': {
+        const pid = action.payload.playerId;
+        const playerToRemove = state.players.find(p => p.id === pid);
+        let newPlayers = state.players.filter(p => p.id !== pid);
+        
+        // 1. HOST MIGRATION LOGIK
+        // Wenn der Host geht, gib die Krone an den nächsten menschlichen Spieler weiter.
+        const wasHostRemoved = playerToRemove?.isHost;
+        if (wasHostRemoved) {
+             const newHostCandidate = newPlayers.find(p => !p.isBot && !p.isHeckler);
+             if (newHostCandidate) {
+                 newPlayers = newPlayers.map(p => 
+                    p.id === newHostCandidate.id ? { ...p, isHost: true } : p
+                 );
+             }
+        }
+
+        // 2. SPIELLEITER (GM) FAILSAFE LOGIK
+        // Wenn der AKTUELLE Spielleiter den Raum verlässt (und das Spiel läuft), 
+        // wird die Runde SOFORT übersprungen und der nächste ist dran.
+        // Das verhindert Deadlocks, wenn der GM weg ist und niemand die Phase beenden kann.
+        const wasGameMaster = state.gameMasterId === pid;
+        if (wasGameMaster && state.phase !== GamePhase.LOBBY && state.phase !== GamePhase.FINAL_LEADERBOARD) {
+            let nextGmId = null;
+            const validCandidates = newPlayers.filter(p => !p.isHeckler);
+
+            if (state.gameMode === 'ai') {
+                // Sollte eigentlich nicht passieren, da AI_GM_ID != player ID
+                nextGmId = AI_GM_ID; 
+            } else if (state.gameMode === 'host') {
+                // Im Host-Modus ist der neue Host (siehe oben) auch der neue GM
+                const newHost = newPlayers.find(p => p.isHost);
+                nextGmId = newHost ? newHost.id : (validCandidates[0]?.id || null);
+            } else {
+                // Classic Mode: Wir nehmen einfach den ersten verfügbaren Spieler (oder den, der nachgerückt ist).
+                // Da wir die Runde neu starten, ist es am sichersten, einfach einen validen GM zu setzen.
+                nextGmId = validCandidates.length > 0 ? validCandidates[0].id : null;
+            }
+
+            return {
+                ...state,
+                players: newPlayers,
+                gameMasterId: nextGmId,
+                phase: GamePhase.GM_INPUT, // Reset auf Frage-Auswahl
+                currentRound: state.currentRound + 1, // Nächste Runde
+                question: '',
+                correctAnswerText: '',
+                gmFakeAnswer: '',
+                submittedAnswers: [],
+                votes: {},
+                revealedAnswerIds: [],
+                awardedBonusIds: [],
+                roastData: null,
+                // Die abgebrochene Runde wird NICHT in die History aufgenommen
+            };
+        }
+
+        // 3. NORMALER SPIELER VERLÄSST DAS SPIEL (Nicht GM)
+        // Hier greift die normale Logik: Antworten des Spielers löschen und weitermachen.
+        
+        let newGmId = state.gameMasterId;
+        // Wenn wir in der Lobby sind und der GM geht, müssen wir neu zuweisen, aber keine Runde skippen
+        if (state.gameMasterId === pid && state.phase === GamePhase.LOBBY) {
+             const validCandidates = newPlayers.filter(p => !p.isHeckler);
+             newGmId = validCandidates.length > 0 ? validCandidates[0].id : null;
+        }
+
+        // Bereinige Antworten und Votes des gekickten Spielers
+        const newSubmitted = state.submittedAnswers.filter(a => a.authorId !== pid);
+        const newParticipantIds = state.participantIds.filter(id => id !== pid);
+        const newVotes = { ...state.votes };
+        delete newVotes[pid];
+
+        let nextState = { 
+          ...state, 
+          players: newPlayers, 
+          gameMasterId: newGmId,
+          submittedAnswers: newSubmitted,
+          participantIds: newParticipantIds,
+          votes: newVotes
+        };
+
+        // AUTO-ADVANCE LOGIC: Prüfe, ob durch den Kick alle verbleibenden fertig sind
+        
+        // 1. Wenn wir in PLAYER_INPUT sind
+        if (state.phase === GamePhase.PLAYER_INPUT) {
+            const allAnswered = newParticipantIds.length > 0 && newParticipantIds.every(pId => newSubmitted.some(a => a.authorId === pId));
+            
+            // Sonderfall: Wenn nur noch Bots oder Host da sind und Spielmodus host ist, oder alle abgegeben haben
+            if (allAnswered) {
+                 const final = [{ id: 'correct', text: state.correctAnswerText, authorId: 'GAME', isCorrect: true }, ...newSubmitted];
+                 if (state.gmFakeAnswer.trim()) final.push({ id: 'ai-fake', text: state.gmFakeAnswer, authorId: 'AI', isCorrect: false });
+                 nextState = { ...nextState, submittedAnswers: shuffle(final), phase: GamePhase.VOTING };
+            }
+        }
+        
+        // 2. Wenn wir in VOTING sind
+        if (state.phase === GamePhase.VOTING) {
+            const allVoted = newParticipantIds.length > 0 && newParticipantIds.every(pId => newVotes[pId]);
+            
+            if (allVoted) {
+                 const upd = newPlayers.map(p => {
+                    let pts = 0;
+                    const myVote = newVotes[p.id];
+                    if (myVote && nextState.submittedAnswers.find(a => a.id === myVote)?.isCorrect) pts += 1;
+                    pts += Object.entries(newVotes).filter(([vid, aid]) => {
+                      const ans = nextState.submittedAnswers.find(a => a.id === aid);
+                      return ans && ans.authorId === p.id && vid !== p.id;
+                    }).length;
+                    return { ...p, score: p.score + pts };
+                  });
+                  nextState = { ...nextState, votes: newVotes, players: upd, phase: GamePhase.RESOLUTION, revealedAnswerIds: [] };
+            }
+        }
+
+        return nextState;
+      }
+      case 'START_GAME': return { ...state, phase: GamePhase.GM_INPUT, gameMode: action.payload.mode, gameMasterId: action.payload.mode === 'ai' ? AI_GM_ID : state.players[0].id, currentRound: 1, history: [] };
+      case 'SUBMIT_GM': {
+        const parts = state.players.filter(p => p.id !== state.gameMasterId && !p.isHeckler && !p.isBot).map(p => p.id);
+        const bots = state.players.filter(p => p.isBot && !p.isHeckler).map(p => p.id);
+        return { ...state, phase: GamePhase.PLAYER_INPUT, question: action.payload.question, correctAnswerText: action.payload.correct, gmFakeAnswer: action.payload.fake, category: action.payload.category, submittedAnswers: [], participantIds: [...parts, ...bots], votes: {}, roastData: null };
+      }
+      case 'SUBMIT_FAKE': {
+        if (state.submittedAnswers.some(a => a.authorId === action.payload.playerId)) return state;
+        const newAns = [...state.submittedAnswers, { id: Math.random().toString(36).substr(2, 9), text: action.payload.text, authorId: action.payload.playerId, isCorrect: false }];
+        if (newAns.length >= state.participantIds.length) {
+          const final = [{ id: 'correct', text: state.correctAnswerText, authorId: 'GAME', isCorrect: true }, ...newAns];
+          if (state.gmFakeAnswer.trim()) final.push({ id: 'ai-fake', text: state.gmFakeAnswer, authorId: 'AI', isCorrect: false });
+          return { ...state, submittedAnswers: shuffle(final), phase: GamePhase.VOTING };
+        }
+        return { ...state, submittedAnswers: newAns };
+      }
+      case 'VOTE': {
+        const nextV = { ...state.votes, [action.payload.playerId]: action.payload.answerId };
+        if (Object.keys(nextV).length >= state.participantIds.length) {
+          const upd = state.players.map(p => {
+            let pts = 0;
+            const myVote = nextV[p.id];
+            if (myVote && state.submittedAnswers.find(a => a.id === myVote)?.isCorrect) pts += 1;
+            pts += Object.entries(nextV).filter(([vid, aid]) => {
+              const ans = state.submittedAnswers.find(a => a.id === aid);
+              return ans && ans.authorId === p.id && vid !== p.id;
+            }).length;
+            return { ...p, score: p.score + pts };
+          });
+          return { ...state, votes: nextV, players: upd, phase: GamePhase.RESOLUTION, revealedAnswerIds: [] };
+        }
+        return { ...state, votes: nextV };
+      }
+      case 'NEXT_ROUND': {
+        const historyEntry: RoundHistory = { question: state.question, correctAnswerText: state.correctAnswerText, answers: [...state.submittedAnswers], votes: { ...state.votes } };
+        let nGm = '';
+        if (state.gameMode === 'ai') nGm = AI_GM_ID;
+        else if (state.gameMode === 'host') nGm = state.players.find(p => p.isHost)?.id || state.players[0].id;
+        else {
+           let cur = state.players.findIndex(p => p.id === state.gameMasterId);
+           let nxt = (cur + 1) % state.players.length;
+           while (state.players[nxt].isHeckler) nxt = (nxt + 1) % state.players.length;
+           nGm = state.players[nxt].id;
+        }
+        return { ...state, phase: GamePhase.GM_INPUT, gameMasterId: nGm, currentRound: state.currentRound + 1, question: '', submittedAnswers: [], votes: {}, revealedAnswerIds: [], roastData: null, history: [...state.history, historyEntry] };
+      }
+      case 'END_GAME': {
+        const historyEntry: RoundHistory = { question: state.question, correctAnswerText: state.correctAnswerText, answers: [...state.submittedAnswers], votes: { ...state.votes } };
+        return { ...state, phase: GamePhase.FINAL_LEADERBOARD, history: [...state.history, historyEntry] };
+      }
+      case 'RESET_GAME': return { ...INITIAL_STATE, players: state.players.map(p => ({ ...p, score: 0 })), phase: GamePhase.LOBBY };
+      case 'ADD_BOT': return { ...state, players: [...state.players, { id: action.payload.botId, name: action.payload.name, avatar: action.payload.avatar, botPersonality: action.payload.personality, score: 0, isBot: true }] };
+      case 'REVEAL_ANSWER': return { ...state, revealedAnswerIds: [...state.revealedAnswerIds, action.payload.answerId] };
+      case 'AWARD_POINT': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, score: p.score + 1 } : p), awardedBonusIds: [...state.awardedBonusIds, action.payload.playerId] };
+      case 'SET_ROAST': return { ...state, roastData: action.payload };
+      case 'SET_FINAL_ROAST': return { ...state, finalRoast: action.payload.text };
+      case 'SYNC_STATE': return action.payload;
+      case 'UPDATE_PLAYER': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, ...action.payload } : p) };
+      case 'TOGGLE_TROLL_MODE': {
+        if (action.payload.enable) return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
+        return { ...state, players: state.players.filter(p => !p.isHeckler) };
+      }
+      default: return state;
+    }
+  };
+
+  // --- AI ---
+  const generateAiContent = async (categoryInput: string, personality: BotPersonality = 'pro') => {
+    setIsAiLoading(true);
+    const cat = CATEGORIES.find(c => c.id === categoryInput) || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    try {
+      const ai = getAiInstance();
+      const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}` });
+      const data = JSON.parse(cleanJsonString(resp.text || '{}'));
+      setIsAiLoading(false);
+      return { 
+        question: data.question, 
+        correctAnswer: cleanAnswer(data.correctAnswer), // Sanitize answer
+        category: cat.id 
+      };
+    } catch (e) {
+      setIsAiLoading(false);
+      const fallback = QUESTIONS[cat.id][0];
+      return { ...fallback, correctAnswer: cleanAnswer(fallback.a), category: cat.id };
+    }
+  };
+
+  const generateBotAnswers = async (bots: Player[], q: string) => {
+    if (botProcessingRef.current) return;
+    botProcessingRef.current = true;
+    
+    try {
+      const ai = getAiInstance();
+      
+      // Gruppiere Bots nach Persönlichkeit
+      const trolls = bots.filter(b => b.botPersonality === 'troll');
+      const pros = bots.filter(b => b.botPersonality === 'pro' || !b.botPersonality);
+      const beginners = bots.filter(b => b.botPersonality === 'beginner');
+
+      const promises = [];
+
+      // 1. TROLLS: Lustig, absurd, aber passend
+      if (trolls.length > 0) {
+          promises.push((async () => {
+              const resp = await ai.models.generateContent({ 
+                  model: 'gemini-3-flash-preview', 
+                  contents: `Frage: "${q}". Erfinde für ${trolls.length} Spieler lustige, absurde Quatsch-Antworten, die aber grammatikalisch/thematisch als Antwort durchgehen könnten. Max 8 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+              });
+              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
+              trolls.forEach((b, i) => {
+                  if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 500 + i * 1000);
+              });
+          })());
+      }
+
+      // 2. PROS: Glaubwürdig
+      if (pros.length > 0) {
+          promises.push((async () => {
+              const resp = await ai.models.generateContent({ 
+                  model: 'gemini-3-flash-preview', 
+                  contents: `Frage: "${q}". Erfinde für ${pros.length} Spieler absolut glaubwürdige, lexikon-artige Lügen. Max 10 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+              });
+              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
+              pros.forEach((b, i) => {
+                  if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 200 + i * 800);
+              });
+          })());
+      }
+
+      // 3. BEGINNERS: Simpel
+      if (beginners.length > 0) {
+          promises.push((async () => {
+              const resp = await ai.models.generateContent({ 
+                  model: 'gemini-3-flash-preview', 
+                  contents: `Frage: "${q}". Erfinde für ${beginners.length} Spieler simple, etwas plumpe Lügen, die man leicht durchschaut. Max 6 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+              });
+              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
+              beginners.forEach((b, i) => {
+                   if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 1000 + i * 1000);
+              });
+          })());
+      }
+
+      await Promise.all(promises);
+
+    } catch(e) {
+        console.error("Bot generation failed", e);
+    } finally { 
+        botProcessingRef.current = false; 
+    }
+  };
+
+  const processBotVotes = (bots: Player[]) => {
+      if (botVotingRef.current) return;
+      botVotingRef.current = true;
+      
+      bots.forEach((bot, index) => {
+          setTimeout(() => {
+              const ownAnswer = gameState.submittedAnswers.find(a => a.authorId === bot.id);
+              const possibleAnswers = gameState.submittedAnswers.filter(a => a.id !== ownAnswer?.id);
+              
+              if (possibleAnswers.length > 0) {
+                  const choice = possibleAnswers[Math.floor(Math.random() * possibleAnswers.length)];
+                  dispatch({ type: 'VOTE', payload: { playerId: bot.id, answerId: choice.id } });
+              }
+          }, 1500 + (index * 1500)); 
+      });
+      setTimeout(() => { botVotingRef.current = false; }, 1500 + (bots.length * 1500) + 1000);
+  };
+
+  // --- HECKLER / ROAST LOGIC ---
+  const generateRoundRoast = async () => {
+      // 1. Abbrechen wenn bereits in Arbeit oder schon vorhanden
+      if (roastProcessingRef.current || gameState.roastData) return;
+      
+      const heckler = gameState.players.find(p => p.isHeckler);
+      if (!heckler) return;
+
+      roastProcessingRef.current = true;
+
+      // 2. Suche Opfer: Spieler, die für eine FALSCHE Antwort gestimmt haben
+      const victims: { player: Player, answer: Answer }[] = [];
+      const votes = gameState.votes;
+
+      for (const p of gameState.players) {
+          if (p.isHeckler) continue; // Heckler beleidigt sich nicht selbst
+          
+          const votedAnswerId = votes[p.id];
+          if (!votedAnswerId) continue;
+
+          const votedAnswer = gameState.submittedAnswers.find(a => a.id === votedAnswerId);
+          if (votedAnswer && !votedAnswer.isCorrect) {
+             victims.push({ player: p, answer: votedAnswer });
+          }
+      }
+
+      if (victims.length === 0) { 
+          roastProcessingRef.current = false; 
+          return; 
+      }
+
+      // 3. Zufälliges Opfer auswählen
+      const victim = victims[Math.floor(Math.random() * victims.length)];
+
+      try {
+          const ai = getAiInstance();
+          const resp = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz.
+              Frage: "${gameState.question}".
+              Spieler "${victim.player.name}" hat tatsächlich geglaubt, die Antwort sei: "${victim.answer.text}".
+
+              Aufgabe: Roaste ${victim.player.name} in 2-3 Sätzen dafür. 
+              - Nutze MAXIMAL EINE Jugendsprache-Phrase (z.B. "Uff", "Lost", "Digga").
+              - Der Fokus liegt darauf, wie lächerlich der Inhalt der Antwort "${victim.answer.text}" ist. 
+              - Mache dich konkret darüber lustig, dass jemand so etwas Absurdes für wahr hält.`
+          });
+          const text = resp.text?.trim() || "Uff. Wie kann man das nur glauben?";
+          
+          dispatch({ 
+              type: 'SET_ROAST', 
+              payload: { 
+                  targetName: victim.player.name, 
+                  botName: heckler.name, 
+                  text: text,
+                  answerId: victim.answer.id 
+              } 
+          });
+      } catch (e) {
+          console.error("Roast failed", e);
+      } finally {
+          roastProcessingRef.current = false;
+      }
+  };
+
+  const generateFinalRoast = async () => {
+      const heckler = gameState.players.find(p => p.isHeckler);
+      if (!heckler) return;
+
+      const sorted = [...gameState.players.filter(p => !p.isHeckler)].sort((a,b) => b.score - a.score);
+      const winner = sorted[0];
+      const loser = sorted[sorted.length - 1];
+
+      try {
+          const ai = getAiInstance();
+          const resp = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: `Du bist "Troll Torben". Das Spiel ist vorbei. Gewinner: ${winner?.name} (${winner?.score} Pkt), Verlierer: ${loser?.name}. Gib einen zynischen Abschlusskommentar ab. (Max 20 Wörter).`
+          });
+          const text = resp.text?.trim() || "Endlich vorbei!";
+          dispatch({ type: 'SET_FINAL_ROAST', payload: { text } });
+      } catch (e) {}
+  };
+
+  // --- EFFECTS ---
+  
+  // 1. Bot GM schlägt Frage vor
+  useEffect(() => {
+    if (!isHost || gameState.phase !== GamePhase.GM_INPUT) return;
+    const gm = gameState.players.find(p => p.id === gameState.gameMasterId);
+    if (gm?.isBot || gameState.gameMasterId === AI_GM_ID) {
+      setTimeout(async () => {
+        const d = await generateAiContent("random", gm?.botPersonality || 'pro');
+        dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } });
+      }, 1500);
+    }
+  }, [gameState.phase, gameState.gameMasterId, isHost]);
+
+  // 2. Bots reichen Antworten ein
+  useEffect(() => {
+    if (!isHost || gameState.phase !== GamePhase.PLAYER_INPUT) return;
+    const bts = gameState.players.filter(p => p.isBot && !p.isHeckler && gameState.participantIds.includes(p.id) && !gameState.submittedAnswers.some(a => a.authorId === p.id));
+    if (bts.length > 0) generateBotAnswers(bts, gameState.question);
+  }, [gameState.phase, gameState.submittedAnswers, isHost]);
+
+  // 3. Bots stimmen ab
+  useEffect(() => {
+    if (!isHost || gameState.phase !== GamePhase.VOTING) return;
+    const botsToVote = gameState.players.filter(p => p.isBot && !p.isHeckler && gameState.participantIds.includes(p.id) && !gameState.votes[p.id]);
+    if (botsToVote.length > 0) {
+        processBotVotes(botsToVote);
+    } else {
+        botVotingRef.current = false;
+    }
+  }, [gameState.phase, gameState.votes, isHost, gameState.participantIds]);
+
+  // 4. Heckler Roast (Trigger während Voting)
+  useEffect(() => {
+      if (!isHost) return;
+
+      // Wenn wir im Voting sind, versuche einen Roast zu generieren, sobald falsche Stimmen da sind
+      if (gameState.phase === GamePhase.VOTING) {
+          generateRoundRoast();
+      }
+      
+      // Fallback: Wenn wir in der Auflösung sind und noch keinen Roast haben (z.B. weil Generierung fehlgeschlagen), versuche es nochmal
+      if (gameState.phase === GamePhase.RESOLUTION && !gameState.roastData) {
+          generateRoundRoast();
+      }
+      // Reset lock wenn wir nicht in relevanten Phasen sind
+      if (gameState.phase !== GamePhase.VOTING && gameState.phase !== GamePhase.RESOLUTION) {
+          roastProcessingRef.current = false;
+      }
+
+  }, [gameState.phase, gameState.votes, isHost]);
+
+  // 5. Heckler Roast (Ende)
+  useEffect(() => {
+      if (!isHost || gameState.phase !== GamePhase.FINAL_LEADERBOARD) return;
+      if (!gameState.finalRoast) {
+          generateFinalRoast();
+      }
+  }, [gameState.phase, isHost]);
+
+
+  // --- RENDER ---
+  const gm = gameState.players.find(p => p.id === gameState.gameMasterId);
+  const isAiGm = gameState.gameMasterId === AI_GM_ID;
+
+  return (
+    <div className="min-h-screen bg-brand-dark text-brand-light p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden">
+      {localPlayerId && (
+        <div className="fixed top-2 right-2 md:top-6 md:right-6 z-50">
+            <button onClick={leaveSession} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg border-2 border-red-400"><LogOut size={24} /></button>
+        </div>
+      )}
+      {isHost && <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/20 font-mono tracking-widest uppercase z-50">RAUM: {roomCode}</div>}
+
+      <div className="max-w-4xl mx-auto">
+        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
+
+        {localPlayerId && gameState.phase !== GamePhase.LOBBY && (
+          <div className="animate-fade-in">
+             {gameState.phase === GamePhase.GM_INPUT && (
+              (localPlayerId === gameState.gameMasterId && !isAiGm) ? (
+                <div className="space-y-4">
+                  <div className="flex justify-end"><Button variant="secondary" className="text-xs" onClick={async () => { const d = await generateAiContent("random"); dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } }); }} disabled={isAiLoading}>{isAiLoading ? <Loader2 className="animate-spin mr-2" /> : <Wand2 size={14} className="mr-2" />}KI-Vorschlag</Button></div>
+                  <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} />
+                </div>
+              ) : (
+                <div className="text-center pt-20"><Avatar avatar={isAiGm ? "https://robohash.org/AI?set=set4" : (gm?.avatar || "")} size="3xl" className="mx-auto mb-6 border-8 border-brand-dark" /><h2 className="text-3xl font-bold">{isAiGm ? "KI-Monster" : gm?.name} wählt eine Frage...</h2></div>
+              )
+            )}
+            
+            {gameState.phase === GamePhase.PLAYER_INPUT && (
+              localPlayerId === gameState.gameMasterId ? (
+                <div className="text-center pt-10">
+                   <Avatar avatar={gm?.avatar || ""} size="3xl" className="mx-auto mb-8 border-8 border-brand-dark" />
+                   <h2 className="text-3xl font-bold mb-8">Spieler überlegen...</h2>
+                   <div className="max-w-md mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {gameState.players.filter(p => !p.isHeckler && p.id !== gameState.gameMasterId).map(p => {
+                        const sub = gameState.submittedAnswers.some(a => a.authorId === p.id);
+                        return (
+                          <div key={p.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${sub ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                             <Avatar avatar={p.avatar} size="sm" /><div className="flex-1 text-left"><p className="font-bold truncate">{p.name}</p></div>{sub && <CheckCircle2 size={20} className="text-green-500" />}
+                          </div>
+                        );
+                      })}
+                   </div>
+                   <p className="text-purple-300 mt-10 flex items-center justify-center gap-2"><Eye className="animate-pulse" /> Du bist der Spielleiter.</p>
+                </div>
+              ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
+            )}
+
+            {gameState.phase === GamePhase.VOTING && (
+              (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
+            )}
+
+            {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} />}
+
+            {gameState.phase === GamePhase.FINAL_LEADERBOARD && <FinalLeaderboard players={gameState.players} onReset={() => dispatch({ type: 'RESET_GAME' })} isHost={isHost} history={gameState.history} gameMode={gameState.gameMode} />}
+          </div>
+        )}
+
+        {localPlayerId && isHost && (
+          <div className="mt-20 border-t border-white/10 pt-10">
+             <div className="flex items-center gap-2 text-xs font-black uppercase text-brand-accent mb-4"><Settings size={14}/> Admin</div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {gameState.players.map(p => (
+                 <div key={p.id} className={`p-4 rounded-xl flex items-center justify-between border ${p.id === localPlayerId ? 'bg-brand-accent/10 border-brand-accent' : 'bg-white/5'}`}>
+                   <div className="flex items-center gap-3"><Avatar avatar={p.avatar} size="sm" /><span className="text-sm font-bold">{p.name} {p.id === localPlayerId && "(Du)"}</span></div>
+                   {p.id !== localPlayerId && <button onClick={() => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } })} className="p-2 text-red-500"><UserX size={18} /></button>}
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  function addBot(personality: BotPersonality) {
+    const existing = gameState.players.map(pl => pl.name);
+    let pool: string[] = [];
+
+    if (personality === 'beginner') {
+        pool = ["Ahnungslose Anne", "Planloser Paul", "Verwirrter Volker", "Naive Nina", "Rate-Rudi"];
+    } else if (personality === 'pro') {
+        pool = ["Lexikon-Lisa", "Fakten-Frank", "Wissens-Willi", "Professor Primus", "Schlaue Sarah"];
+    } else if (personality === 'troll') {
+        pool = ["Chaos-Caspar", "Troll-Torben", "Witz-Walter", "Spam-Susi", "Joker-Jonas"];
+    } else {
+        pool = ["Bluff-Boris", "Rate-Ralf", "Schlau-Schlumpf", "Mogel-Moritz"];
+    }
+
+    const available = pool.filter(n => !existing.includes(n));
+    const n = available.length > 0 
+        ? available[Math.floor(Math.random() * available.length)] 
+        : `${personality === 'pro' ? 'Profi' : personality === 'beginner' ? 'Noob' : 'Bot'} ${Math.floor(Math.random() * 100)}`;
+
+    const av = AVATAR_COLORS.find(c => !gameState.players.map(pl => pl.avatar).includes(c)) || AVATAR_COLORS[0];
+    dispatch({ type: 'ADD_BOT', payload: { botId: `bot-${Math.random().toString(36).substr(2,9)}`, name: n, avatar: av, personality } });
+  }
+};
+
+export default App;

@@ -1,0 +1,128 @@
+
+import React, { useState } from 'react';
+import { Player, Answer } from '../types';
+import { Button } from './ui/Button';
+import { Card } from './ui/Card';
+import { Loader2, Info, Eye } from 'lucide-react';
+
+interface VotingProps {
+  player: Player;
+  question: string;
+  answers: Answer[];
+  onSubmitVote: (answerId: string) => void;
+  hasVoted: boolean;
+  isGameMaster?: boolean;
+}
+
+export const Voting: React.FC<VotingProps> = ({ player, question, answers, onSubmitVote, hasVoted, isGameMaster }) => {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const handleSubmit = () => {
+    if (selectedId) {
+      onSubmitVote(selectedId);
+      setSelectedId(null);
+    }
+  };
+
+  if (isGameMaster) {
+    return (
+       <div className="max-w-2xl mx-auto animate-fade-in">
+       <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold font-serif text-white">Abstimmungsphase</h2>
+        <p className="text-purple-300 text-sm mt-1 flex items-center justify-center gap-1">
+          <Eye size={14} /> Du bist Spielleiter. Sieh zu, wie sie verzweifeln!
+        </p>
+      </div>
+
+      <div className="bg-purple-950/60 border border-purple-700/50 rounded-xl p-5 mb-8 text-center shadow-lg">
+        <p className="text-sm text-purple-300 uppercase tracking-widest mb-2 font-bold italic">FRAGE</p>
+        <p className="text-2xl font-serif">{question}</p>
+      </div>
+
+      <div className="grid gap-3 mb-8">
+        {answers.map((ans, idx) => (
+          <div
+            key={ans.id}
+            className="relative p-5 rounded-xl text-left bg-white/5 border border-white/10 text-gray-100 opacity-80"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 border-white/30 text-white/50">
+                {String.fromCharCode(65 + idx)}
+              </div>
+              <span className="text-lg leading-snug">{ans.text}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="text-center animate-pulse text-purple-200">
+        Warte auf Stimmen der Spieler...
+      </div>
+    </div>
+    );
+  }
+
+  if (hasVoted) {
+     return (
+      <div className="max-w-md mx-auto animate-fade-in text-center pt-10">
+        <h2 className="text-3xl font-bold text-white mb-4">Wahl gespeichert</h2>
+        <p className="text-purple-200 flex items-center justify-center gap-2">
+          <Loader2 className="animate-spin" />
+          Warte auf die Auflösung...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto animate-fade-in">
+       <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold font-serif text-white">Wähle die richtige Antwort</h2>
+        <p className="text-purple-300 text-sm mt-1 flex items-center justify-center gap-1">
+          <Info size={14} /> Finde die Wahrheit unter den Lügen!
+        </p>
+      </div>
+
+      <div className="bg-purple-950/60 border border-purple-700/50 rounded-xl p-5 mb-8 text-center shadow-lg">
+        <p className="text-sm text-purple-300 uppercase tracking-widest mb-2 font-bold italic">FRAGE</p>
+        <p className="text-2xl font-serif">{question}</p>
+      </div>
+
+      <div className="grid gap-3 mb-8">
+        {answers.map((ans, idx) => (
+          <button
+            key={ans.id}
+            onClick={() => setSelectedId(ans.id)}
+            className={`
+              relative p-5 rounded-xl text-left transition-all duration-200 border-2
+              ${selectedId === ans.id 
+                ? 'bg-brand-accent text-brand-dark border-brand-accent shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-[1.01]' 
+                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 text-gray-100'}
+            `}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`
+                flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2
+                ${selectedId === ans.id ? 'border-brand-dark text-brand-dark' : 'border-white/30 text-white/50'}
+              `}>
+                {String.fromCharCode(65 + idx)}
+              </div>
+              <span className="text-lg leading-snug">{ans.text}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="fixed bottom-6 left-0 right-0 px-6 max-w-2xl mx-auto z-10">
+        <Button 
+          onClick={handleSubmit} 
+          disabled={!selectedId} 
+          fullWidth
+          className="shadow-2xl h-16 text-xl"
+        >
+          Auswahl bestätigen
+        </Button>
+      </div>
+      <div className="h-24"></div>
+    </div>
+  );
+};
