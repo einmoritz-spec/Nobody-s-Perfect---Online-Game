@@ -11,7 +11,7 @@ import { Avatar } from './components/ui/Avatar';
 import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
-import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2 } from 'lucide-react';
+import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play } from 'lucide-react';
 import { CATEGORIES, QUESTIONS } from './questions';
 
 // --- HELPER ---
@@ -72,6 +72,8 @@ const INITIAL_STATE: GameState = {
   lastUpdated: 0,
   isAiGameMasterMode: false,
   gameMode: 'classic',
+  timerEndTime: null,
+  timerDuration: null,
   history: [],
   finalRoast: null
 };
@@ -284,24 +286,17 @@ const App: React.FC = () => {
         }
 
         // 2. SPIELLEITER (GM) FAILSAFE LOGIK
-        // Wenn der AKTUELLE Spielleiter den Raum verlässt (und das Spiel läuft), 
-        // wird die Runde SOFORT übersprungen und der nächste ist dran.
-        // Das verhindert Deadlocks, wenn der GM weg ist und niemand die Phase beenden kann.
         const wasGameMaster = state.gameMasterId === pid;
         if (wasGameMaster && state.phase !== GamePhase.LOBBY && state.phase !== GamePhase.FINAL_LEADERBOARD) {
             let nextGmId = null;
             const validCandidates = newPlayers.filter(p => !p.isHeckler);
 
             if (state.gameMode === 'ai') {
-                // Sollte eigentlich nicht passieren, da AI_GM_ID != player ID
                 nextGmId = AI_GM_ID; 
             } else if (state.gameMode === 'host') {
-                // Im Host-Modus ist der neue Host (siehe oben) auch der neue GM
                 const newHost = newPlayers.find(p => p.isHost);
                 nextGmId = newHost ? newHost.id : (validCandidates[0]?.id || null);
             } else {
-                // Classic Mode: Wir nehmen einfach den ersten verfügbaren Spieler (oder den, der nachgerückt ist).
-                // Da wir die Runde neu starten, ist es am sichersten, einfach einen validen GM zu setzen.
                 nextGmId = validCandidates.length > 0 ? validCandidates[0].id : null;
             }
 
@@ -318,22 +313,20 @@ const App: React.FC = () => {
                 votes: {},
                 revealedAnswerIds: [],
                 awardedBonusIds: [],
+                timerEndTime: null, // Timer reset
+                timerDuration: null,
                 roastData: null,
-                // Die abgebrochene Runde wird NICHT in die History aufgenommen
             };
         }
 
         // 3. NORMALER SPIELER VERLÄSST DAS SPIEL (Nicht GM)
-        // Hier greift die normale Logik: Antworten des Spielers löschen und weitermachen.
         
         let newGmId = state.gameMasterId;
-        // Wenn wir in der Lobby sind und der GM geht, müssen wir neu zuweisen, aber keine Runde skippen
         if (state.gameMasterId === pid && state.phase === GamePhase.LOBBY) {
              const validCandidates = newPlayers.filter(p => !p.isHeckler);
              newGmId = validCandidates.length > 0 ? validCandidates[0].id : null;
         }
 
-        // Bereinige Antworten und Votes des gekickten Spielers
         const newSubmitted = state.submittedAnswers.filter(a => a.authorId !== pid);
         const newParticipantIds = state.participantIds.filter(id => id !== pid);
         const newVotes = { ...state.votes };
@@ -348,21 +341,17 @@ const App: React.FC = () => {
           votes: newVotes
         };
 
-        // AUTO-ADVANCE LOGIC: Prüfe, ob durch den Kick alle verbleibenden fertig sind
-        
-        // 1. Wenn wir in PLAYER_INPUT sind
+        // AUTO-ADVANCE LOGIC
         if (state.phase === GamePhase.PLAYER_INPUT) {
             const allAnswered = newParticipantIds.length > 0 && newParticipantIds.every(pId => newSubmitted.some(a => a.authorId === pId));
             
-            // Sonderfall: Wenn nur noch Bots oder Host da sind und Spielmodus host ist, oder alle abgegeben haben
             if (allAnswered) {
                  const final = [{ id: 'correct', text: state.correctAnswerText, authorId: 'GAME', isCorrect: true }, ...newSubmitted];
                  if (state.gmFakeAnswer.trim()) final.push({ id: 'ai-fake', text: state.gmFakeAnswer, authorId: 'AI', isCorrect: false });
-                 nextState = { ...nextState, submittedAnswers: shuffle(final), phase: GamePhase.VOTING };
+                 nextState = { ...nextState, submittedAnswers: shuffle(final), phase: GamePhase.VOTING, timerEndTime: null, timerDuration: null };
             }
         }
         
-        // 2. Wenn wir in VOTING sind
         if (state.phase === GamePhase.VOTING) {
             const allVoted = newParticipantIds.length > 0 && newParticipantIds.every(pId => newVotes[pId]);
             
@@ -387,7 +376,7 @@ const App: React.FC = () => {
       case 'SUBMIT_GM': {
         const parts = state.players.filter(p => p.id !== state.gameMasterId && !p.isHeckler && !p.isBot).map(p => p.id);
         const bots = state.players.filter(p => p.isBot && !p.isHeckler).map(p => p.id);
-        return { ...state, phase: GamePhase.PLAYER_INPUT, question: action.payload.question, correctAnswerText: action.payload.correct, gmFakeAnswer: action.payload.fake, category: action.payload.category, submittedAnswers: [], participantIds: [...parts, ...bots], votes: {}, roastData: null };
+        return { ...state, phase: GamePhase.PLAYER_INPUT, question: action.payload.question, correctAnswerText: action.payload.correct, gmFakeAnswer: action.payload.fake, category: action.payload.category, submittedAnswers: [], participantIds: [...parts, ...bots], votes: {}, roastData: null, timerEndTime: null, timerDuration: null };
       }
       case 'SUBMIT_FAKE': {
         if (state.submittedAnswers.some(a => a.authorId === action.payload.playerId)) return state;
@@ -395,7 +384,7 @@ const App: React.FC = () => {
         if (newAns.length >= state.participantIds.length) {
           const final = [{ id: 'correct', text: state.correctAnswerText, authorId: 'GAME', isCorrect: true }, ...newAns];
           if (state.gmFakeAnswer.trim()) final.push({ id: 'ai-fake', text: state.gmFakeAnswer, authorId: 'AI', isCorrect: false });
-          return { ...state, submittedAnswers: shuffle(final), phase: GamePhase.VOTING };
+          return { ...state, submittedAnswers: shuffle(final), phase: GamePhase.VOTING, timerEndTime: null, timerDuration: null };
         }
         return { ...state, submittedAnswers: newAns };
       }
@@ -427,7 +416,21 @@ const App: React.FC = () => {
            while (state.players[nxt].isHeckler) nxt = (nxt + 1) % state.players.length;
            nGm = state.players[nxt].id;
         }
-        return { ...state, phase: GamePhase.GM_INPUT, gameMasterId: nGm, currentRound: state.currentRound + 1, question: '', submittedAnswers: [], votes: {}, revealedAnswerIds: [], roastData: null, history: [...state.history, historyEntry] };
+        return { 
+          ...state, 
+          phase: GamePhase.GM_INPUT, 
+          gameMasterId: nGm, 
+          currentRound: state.currentRound + 1, 
+          question: '', 
+          submittedAnswers: [], 
+          votes: {}, 
+          revealedAnswerIds: [], 
+          roastData: null, 
+          timerEndTime: null,
+          timerDuration: null,
+          awardedBonusIds: [], // WICHTIG: Reset Bonus Points
+          history: [...state.history, historyEntry] 
+        };
       }
       case 'END_GAME': {
         const historyEntry: RoundHistory = { question: state.question, correctAnswerText: state.correctAnswerText, answers: [...state.submittedAnswers], votes: { ...state.votes } };
@@ -440,6 +443,7 @@ const App: React.FC = () => {
       case 'SET_ROAST': return { ...state, roastData: action.payload };
       case 'SET_FINAL_ROAST': return { ...state, finalRoast: action.payload.text };
       case 'SYNC_STATE': return action.payload;
+      case 'START_TIMER': return { ...state, timerEndTime: Date.now() + action.payload.duration * 1000, timerDuration: action.payload.duration }; // Sync Timer & Duration
       case 'UPDATE_PLAYER': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, ...action.payload } : p) };
       case 'TOGGLE_TROLL_MODE': {
         if (action.payload.enable) return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
@@ -630,9 +634,13 @@ const App: React.FC = () => {
           const ai = getAiInstance();
           const resp = await ai.models.generateContent({
               model: 'gemini-3-flash-preview',
-              contents: `Du bist "Troll Torben". Das Spiel ist vorbei. Gewinner: ${winner?.name} (${winner?.score} Pkt), Verlierer: ${loser?.name}. Gib einen zynischen Abschlusskommentar ab. (Max 20 Wörter).`
+              contents: `Du bist "Troll Torben". Das Spiel ist vorbei. 
+              Der Verlierer ist: ${loser ? loser.name : 'jemand'} mit nur ${loser ? loser.score : 0} Punkten.
+              Aufgabe: Roaste den Verlierer gnadenlos für diesen letzten Platz.
+              Umfang: 2-3 kurze, zynische Sätze.
+              Nutze Jugendsprache (z.B. "lost", "bodenlos").`
           });
-          const text = resp.text?.trim() || "Endlich vorbei!";
+          const text = resp.text?.trim() || "Endlich vorbei! Ihr wart alle lost.";
           dispatch({ type: 'SET_FINAL_ROAST', payload: { text } });
       } catch (e) {}
   };
@@ -690,17 +698,45 @@ const App: React.FC = () => {
   }, [gameState.phase, gameState.votes, isHost]);
 
   // 5. Heckler Roast (Ende)
+  // Fix: Stelle sicher, dass der Roast auch feuert, wenn finalRoast noch null ist aber die Phase stimmt.
   useEffect(() => {
       if (!isHost || gameState.phase !== GamePhase.FINAL_LEADERBOARD) return;
       if (!gameState.finalRoast) {
           generateFinalRoast();
       }
-  }, [gameState.phase, isHost]);
+  }, [gameState.phase, isHost, gameState.finalRoast]);
 
 
   // --- RENDER ---
   const gm = gameState.players.find(p => p.id === gameState.gameMasterId);
   const isAiGm = gameState.gameMasterId === AI_GM_ID;
+
+  // HOST TIMER CONTROLS
+  const renderHostTimerControls = () => {
+     if (!isHost || gameState.phase !== GamePhase.PLAYER_INPUT || gameState.timerEndTime) return null;
+     
+     return (
+        <div className="fixed bottom-0 left-0 right-0 bg-brand-dark/90 backdrop-blur-lg border-t border-white/10 p-4 z-50 animate-fade-in-up">
+           <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-brand-accent font-bold uppercase text-xs">
+                 <Timer size={16} /> Timer starten:
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                {[10, 30, 60].map(sec => (
+                    <Button 
+                       key={sec}
+                       onClick={() => dispatch({ type: 'START_TIMER', payload: { duration: sec } })}
+                       className="flex-1 sm:flex-none py-2 text-sm h-10"
+                       variant="secondary"
+                    >
+                       {sec} Sek
+                    </Button>
+                ))}
+              </div>
+           </div>
+        </div>
+     );
+  };
 
   return (
     <div className="min-h-screen bg-brand-dark text-brand-light p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden">
@@ -744,11 +780,13 @@ const App: React.FC = () => {
                    </div>
                    <p className="text-purple-300 mt-10 flex items-center justify-center gap-2"><Eye className="animate-pulse" /> Du bist der Spielleiter.</p>
                 </div>
-              ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
+              ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} timerEndTime={gameState.timerEndTime} timerTotal={gameState.timerDuration} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
             )}
 
+            {renderHostTimerControls()}
+
             {gameState.phase === GamePhase.VOTING && (
-              (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
+              (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} votes={gameState.votes} players={gameState.players} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
             )}
 
             {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} />}

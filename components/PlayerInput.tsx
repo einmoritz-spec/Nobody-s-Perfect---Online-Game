@@ -1,24 +1,57 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { PenTool, Loader2, Check } from 'lucide-react';
+import { PenTool, Loader2, Check, Timer } from 'lucide-react';
 
 interface PlayerInputProps {
   player: Player;
   question: string;
   onSubmit: (answer: string) => void;
   hasSubmitted: boolean;
+  timerEndTime: number | null;
+  timerTotal: number | null;
 }
 
-export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSubmit, hasSubmitted }) => {
+export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSubmit, hasSubmitted, timerEndTime, timerTotal }) => {
   const [answer, setAnswer] = useState('');
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  // Timer Effect
+  useEffect(() => {
+    if (!timerEndTime || hasSubmitted) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        // Auto-Submit if time runs out. If text exists, use it, else "Keine Abgabe"
+        const finalAnswer = answer.trim() || "Keine Abgabe";
+        onSubmit(finalAnswer);
+      }
+    }, 100); // 100ms for smoother bar
+
+    return () => clearInterval(interval);
+  }, [timerEndTime, hasSubmitted, answer, onSubmit]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (answer.trim()) {
       onSubmit(answer.trim());
     }
+  };
+
+  const getProgressColor = (percent: number) => {
+    if (percent > 60) return 'bg-green-500';
+    if (percent > 30) return 'bg-yellow-500';
+    return 'bg-red-500';
   };
 
   if (hasSubmitted) {
@@ -36,8 +69,19 @@ export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSu
     );
   }
 
+  // Calculate progress percentage
+  let progressPercentage = 100;
+  if (timerTotal && timeLeft !== null) {
+      // Calculate more precise time left for smooth bar
+      const now = Date.now();
+      const end = timerEndTime!;
+      const totalMs = timerTotal * 1000;
+      const leftMs = Math.max(0, end - now);
+      progressPercentage = (leftMs / totalMs) * 100;
+  }
+
   return (
-    <div className="max-w-lg mx-auto animate-fade-in">
+    <div className="max-w-lg mx-auto animate-fade-in pb-24">
       <div className="text-center mb-8">
         <span className="inline-block px-3 py-1 bg-purple-800 rounded-full text-xs font-semibold tracking-wider uppercase mb-2">
           Kreativ werden
@@ -54,10 +98,28 @@ export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSu
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-white">
-              <PenTool size={16} />
-              Deine Antwort
-            </label>
+            <div className="flex justify-between items-center text-sm font-medium text-white">
+                <label className="flex items-center gap-2">
+                  <PenTool size={16} />
+                  Deine Antwort
+                </label>
+                {timeLeft !== null && (
+                  <span className={`flex items-center gap-1 font-mono font-bold ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-brand-accent'}`}>
+                     <Timer size={14} /> {timeLeft}s
+                  </span>
+                )}
+            </div>
+
+            {/* Progress Bar */}
+            {timerTotal && timeLeft !== null && (
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                    <div 
+                        className={`h-full transition-all duration-200 ease-linear ${getProgressColor(progressPercentage)}`} 
+                        style={{ width: `${progressPercentage}%` }}
+                    />
+                </div>
+            )}
+
             <textarea
               required
               value={answer}

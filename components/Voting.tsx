@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Player, Answer } from '../types';
+import { Player, Answer, PlayerId } from '../types';
 import { Button } from './ui/Button';
+import { Avatar } from './ui/Avatar';
 import { Card } from './ui/Card';
 import { Loader2, Info, Eye } from 'lucide-react';
 
@@ -12,9 +13,11 @@ interface VotingProps {
   onSubmitVote: (answerId: string) => void;
   hasVoted: boolean;
   isGameMaster?: boolean;
+  votes?: Record<PlayerId, string>;
+  players?: Player[];
 }
 
-export const Voting: React.FC<VotingProps> = ({ player, question, answers, onSubmitVote, hasVoted, isGameMaster }) => {
+export const Voting: React.FC<VotingProps> = ({ player, question, answers, onSubmitVote, hasVoted, isGameMaster, votes, players }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const handleSubmit = () => {
@@ -40,19 +43,40 @@ export const Voting: React.FC<VotingProps> = ({ player, question, answers, onSub
       </div>
 
       <div className="grid gap-3 mb-8">
-        {answers.map((ans, idx) => (
-          <div
-            key={ans.id}
-            className="relative p-5 rounded-xl text-left bg-white/5 border border-white/10 text-gray-100 opacity-80"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 border-white/30 text-white/50">
-                {String.fromCharCode(65 + idx)}
+        {answers.map((ans, idx) => {
+            const voters = votes && players 
+                ? Object.entries(votes)
+                    .filter(([_, aid]) => aid === ans.id)
+                    .map(([pid]) => players.find(p => p.id === pid))
+                    .filter(p => p) 
+                : [];
+
+            return (
+              <div
+                key={ans.id}
+                className="relative p-5 rounded-xl text-left bg-white/5 border border-white/10 text-gray-100 opacity-90 transition-all"
+              >
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 border-white/30 text-white/50">
+                    {String.fromCharCode(65 + idx)}
+                  </div>
+                  <span className="text-lg leading-snug">{ans.text}</span>
+                </div>
+                
+                {/* Live Votes Visualization for GM */}
+                {voters.length > 0 && (
+                   <div className="flex flex-wrap gap-1 pl-12 mt-2 pt-2 border-t border-white/5">
+                      {voters.map((v) => (
+                          <div key={v!.id} className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
+                             <Avatar avatar={v!.avatar} size="xs" />
+                             {v!.name}
+                          </div>
+                      ))}
+                   </div>
+                )}
               </div>
-              <span className="text-lg leading-snug">{ans.text}</span>
-            </div>
-          </div>
-        ))}
+            );
+        })}
       </div>
       <div className="text-center animate-pulse text-purple-200">
         Warte auf Stimmen der Spieler...
