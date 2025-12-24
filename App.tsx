@@ -623,26 +623,50 @@ const App: React.FC = () => {
   };
 
   const generateFinalRoast = async () => {
-      const heckler = gameState.players.find(p => p.isHeckler);
+      // WICHTIG: Nutze aktuellen Ref-State, um sicherzugehen, dass wir die neuesten Spielerdaten haben
+      const currentPlayers = gameStateRef.current.players;
+      const heckler = currentPlayers.find(p => p.isHeckler);
+      
       if (!heckler) return;
 
-      const sorted = [...gameState.players.filter(p => !p.isHeckler)].sort((a,b) => b.score - a.score);
-      const winner = sorted[0];
+      // Prevent double calls
+      if (roastProcessingRef.current) return;
+      roastProcessingRef.current = true;
+
+      const sorted = [...currentPlayers.filter(p => !p.isHeckler)].sort((a,b) => b.score - a.score);
       const loser = sorted[sorted.length - 1];
+      const loserName = loser ? loser.name : 'jemand';
+      const loserScore = loser ? loser.score : 0;
 
       try {
           const ai = getAiInstance();
           const resp = await ai.models.generateContent({
               model: 'gemini-3-flash-preview',
               contents: `Du bist "Troll Torben". Das Spiel ist vorbei. 
-              Der Verlierer ist: ${loser ? loser.name : 'jemand'} mit nur ${loser ? loser.score : 0} Punkten.
+              Der Verlierer ist: ${loserName} mit nur ${loserScore} Punkten.
               Aufgabe: Roaste den Verlierer gnadenlos für diesen letzten Platz.
               Umfang: 2-3 kurze, zynische Sätze.
               Nutze Jugendsprache (z.B. "lost", "bodenlos").`
           });
-          const text = resp.text?.trim() || "Endlich vorbei! Ihr wart alle lost.";
+          
+          const text = resp.text?.trim();
+          if (!text) throw new Error("No text generated");
+
           dispatch({ type: 'SET_FINAL_ROAST', payload: { text } });
-      } catch (e) {}
+      } catch (e) {
+          // FALLBACK: Falls die API fehlschlägt, roasten wir trotzdem!
+          console.error("Roast API failed, using fallback", e);
+          const fallbacks = [
+            `Uff ${loserName}, das war bodenlos. Letzter Platz? Ernsthaft?`,
+            `${loserName} ist heute komplett lost. ${loserScore} Punkte sind ja fast Minusbereich.`,
+            `Glückwunsch ${loserName} zur roten Laterne. Jemand muss ja der Loser sein.`,
+            `Satz mit X, ${loserName}: Das war wohl nix!`
+          ];
+          const fallbackText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+          dispatch({ type: 'SET_FINAL_ROAST', payload: { text: fallbackText } });
+      } finally {
+          roastProcessingRef.current = false;
+      }
   };
 
   // --- EFFECTS ---
@@ -691,7 +715,7 @@ const App: React.FC = () => {
           generateRoundRoast();
       }
       // Reset lock wenn wir nicht in relevanten Phasen sind
-      if (gameState.phase !== GamePhase.VOTING && gameState.phase !== GamePhase.RESOLUTION) {
+      if (gameState.phase !== GamePhase.VOTING && gameState.phase !== GamePhase.RESOLUTION && gameState.phase !== GamePhase.FINAL_LEADERBOARD) {
           roastProcessingRef.current = false;
       }
 
@@ -704,7 +728,7 @@ const App: React.FC = () => {
       if (!gameState.finalRoast) {
           generateFinalRoast();
       }
-  }, [gameState.phase, isHost, gameState.finalRoast]);
+  }, [gameState.phase, isHost]); // Entferne gameState.finalRoast aus Dependency, um Loop zu vermeiden.
 
 
   // --- RENDER ---
