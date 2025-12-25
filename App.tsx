@@ -928,7 +928,7 @@ const App: React.FC = () => {
             <button onClick={leaveSession} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg border-2 border-red-400"><LogOut size={24} /></button>
         </div>
       )}
-      {isHost && <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/20 font-mono tracking-widest uppercase z-50">RAUM: {roomCode}</div>}
+      {isHost && <div className="fixed top-2 left-2 md:top-6 md:left-6 text-[10px] md:text-xs text-white/30 font-mono tracking-widest uppercase z-50 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full border border-white/5 shadow-sm">RAUM: {roomCode}</div>}
 
       <div className="max-w-4xl mx-auto">
         {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
