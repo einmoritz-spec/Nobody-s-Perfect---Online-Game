@@ -73,6 +73,7 @@ export interface GameState {
   gameMode: GameMode; // Neuer Modus
   timerEndTime: number | null; // Neuer Timer State
   timerDuration: number | null; // Gesamtdauer des Timers für Progress Bar
+  showRules: boolean; // Zeigt das Regelfenster für alle an
   roastData?: {
     targetName: string;
     botName: string;
@@ -102,4 +103,5 @@ export type NetworkAction =
   | { type: 'START_TIMER'; payload: { duration: number } } // Neue Timer Action
   | { type: 'SET_ROAST'; payload: { targetName: string; botName: string; text: string; answerId: string } }
   | { type: 'SET_FINAL_ROAST'; payload: { text: string } }
+  | { type: 'TOGGLE_RULES'; payload: { show: boolean } }
   | { type: 'PING' };

@@ -4,7 +4,7 @@ import { Player, AVATAR_COLORS, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User } from 'lucide-react';
+import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle } from 'lucide-react';
 
 interface LobbyProps {
   players: Player[];
@@ -16,6 +16,7 @@ interface LobbyProps {
   onUpdatePlayer?: (updates: { avatar?: string }) => void;
   onAddBot?: (personality: BotPersonality) => void;
   onToggleTrollMode?: (enable: boolean) => void;
+  onToggleRules?: (show: boolean) => void; // Neu
   isHost: boolean;
   roomCode?: string;
   connectionStatus: string;
@@ -31,6 +32,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onUpdatePlayer,
   onAddBot,
   onToggleTrollMode,
+  onToggleRules,
   isHost,
   roomCode,
   connectionStatus
@@ -303,9 +305,16 @@ export const Lobby: React.FC<LobbyProps> = ({
 
         {isHost && onAddBot && (
           <div className="mb-6 space-y-3">
-            <Button variant="secondary" onClick={() => setShowBotModal(true)} fullWidth className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10">
-               <BrainCircuit size={16} className="mr-2 inline" /> KI-Spieler hinzufügen
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowBotModal(true)} fullWidth className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10">
+                   <BrainCircuit size={16} className="mr-2 inline" /> KI-Bot
+                </Button>
+                {onToggleRules && (
+                    <Button variant="secondary" onClick={() => onToggleRules(true)} className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10 px-4">
+                        <HelpCircle size={16} />
+                    </Button>
+                )}
+            </div>
             
             {/* Troll Modus Toggle */}
             <div 

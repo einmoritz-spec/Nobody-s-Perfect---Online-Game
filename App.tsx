@@ -11,7 +11,7 @@ import { Avatar } from './components/ui/Avatar';
 import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
-import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play } from 'lucide-react';
+import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal } from 'lucide-react';
 import { CATEGORIES, QUESTIONS } from './questions';
 
 // --- HELPER ---
@@ -74,6 +74,7 @@ const INITIAL_STATE: GameState = {
   gameMode: 'classic',
   timerEndTime: null,
   timerDuration: null,
+  showRules: false,
   history: [],
   finalRoast: null
 };
@@ -102,6 +103,22 @@ const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // --- HEARTBEAT & SYNC ---
+  // Der Host sendet regelmäßig den State, um Verbindungsabbrüche zu verhindern (Keep-Alive)
+  // und um sicherzustellen, dass Clients, die kurz weg waren, sofort wieder up-to-date sind.
+  useEffect(() => {
+    if (!isHost) return;
+    
+    const interval = setInterval(() => {
+       // Sende State nur, wenn Verbindungen bestehen
+       if (connectionsRef.current.length > 0) {
+           broadcastState(gameStateRef.current);
+       }
+    }, 4000); // Alle 4 Sekunden Heartbeat
+
+    return () => clearInterval(interval);
+  }, [isHost]);
 
   // --- ADMIN SYNC EFFECT ---
   // Wenn mir im GameState die Rolle "isHost" zugewiesen wird (z.B. durch Host-Migration),
@@ -132,7 +149,9 @@ const App: React.FC = () => {
           if (recovery) {
             const { roomCode: rc, state } = JSON.parse(recovery);
             if (rc === savedCode) {
-              setGameState(state);
+              // Stelle sicher, dass showRules existiert (falls altes State-Objekt geladen wird)
+              const safeState = { ...INITIAL_STATE, ...state, showRules: state.showRules || false };
+              setGameState(safeState);
               recreateHost(savedCode, id, name, avatar);
               return;
             }
@@ -231,9 +250,10 @@ const App: React.FC = () => {
              return;
           }
           
-          // SCHUTZ gegen leere Updates: Wenn wir in der Lobby sind und Spieler haben,
-          // akzeptieren wir kein Update, das besagt, es gäbe 0 Spieler (außer bei Reset).
-          if (!isHost && gameStateRef.current.players.length > 0 && action.payload.players.length === 0 && action.payload.phase === GamePhase.LOBBY) {
+          // SCHUTZ gegen leere Updates: 
+          // Wenn wir bereits Spieler haben, akzeptieren wir kein Update mit 0 Spielern.
+          // Das passiert oft bei Verbindungsabbrüchen/Reconnects und verursacht den "Spieler (0)" Glitch.
+          if (!isHost && gameStateRef.current.players.length > 0 && action.payload.players.length === 0) {
               return;
           }
 
@@ -247,9 +267,17 @@ const App: React.FC = () => {
 
   const leaveSession = () => {
     if (window.confirm("Willst du das Spiel wirklich verlassen?")) {
-      localStorage.removeItem(SESSION_KEY);
-      localStorage.removeItem(STATE_RECOVERY_KEY);
-      window.location.reload();
+      // 1. Wenn wir kein Host sind, sagen wir dem Host, dass er uns löschen soll
+      if (localPlayerId && !isHost) {
+          dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: localPlayerId } });
+      }
+
+      // 2. Kurz warten, damit die Nachricht rausgeht, dann lokal aufräumen
+      setTimeout(() => {
+          localStorage.removeItem(SESSION_KEY);
+          localStorage.removeItem(STATE_RECOVERY_KEY);
+          window.location.reload();
+      }, 150);
     }
   };
 
@@ -372,7 +400,7 @@ const App: React.FC = () => {
 
         return nextState;
       }
-      case 'START_GAME': return { ...state, phase: GamePhase.GM_INPUT, gameMode: action.payload.mode, gameMasterId: action.payload.mode === 'ai' ? AI_GM_ID : state.players[0].id, currentRound: 1, history: [] };
+      case 'START_GAME': return { ...state, phase: GamePhase.GM_INPUT, gameMode: action.payload.mode, gameMasterId: action.payload.mode === 'ai' ? AI_GM_ID : state.players[0].id, currentRound: 1, history: [], showRules: false };
       case 'SUBMIT_GM': {
         const parts = state.players.filter(p => p.id !== state.gameMasterId && !p.isHeckler && !p.isBot).map(p => p.id);
         const bots = state.players.filter(p => p.isBot && !p.isHeckler).map(p => p.id);
@@ -426,7 +454,7 @@ const App: React.FC = () => {
           votes: {}, 
           revealedAnswerIds: [], 
           roastData: null, 
-          timerEndTime: null,
+          timerEndTime: null, 
           timerDuration: null,
           awardedBonusIds: [], // WICHTIG: Reset Bonus Points
           history: [...state.history, historyEntry] 
@@ -449,6 +477,7 @@ const App: React.FC = () => {
         if (action.payload.enable) return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
         return { ...state, players: state.players.filter(p => !p.isHeckler) };
       }
+      case 'TOGGLE_RULES': return { ...state, showRules: action.payload.show };
       default: return state;
     }
   };
@@ -762,8 +791,91 @@ const App: React.FC = () => {
      );
   };
 
+  const renderRulesModal = () => {
+      if (!gameState.showRules) return null;
+
+      return (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-brand-dark border-2 border-brand-accent rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative">
+                <button 
+                  onClick={() => isHost ? dispatch({ type: 'TOGGLE_RULES', payload: { show: false } }) : setGameState(s => ({...s, showRules: false}))}
+                  className="absolute top-4 right-4 text-white/50 hover:text-white bg-black/20 rounded-full p-2 hover:bg-black/40 transition-all z-10"
+                >
+                    <X size={24} />
+                </button>
+                
+                <div className="p-8">
+                   <div className="text-center mb-8">
+                      <h2 className="text-3xl font-black font-serif text-brand-accent mb-2 uppercase tracking-wide">Spielregeln</h2>
+                      <p className="text-purple-300 italic">Wie man "Nobody's Perfect" gewinnt</p>
+                   </div>
+
+                   <div className="grid gap-6 md:grid-cols-2">
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                         <div className="flex items-center gap-3 mb-3 text-brand-accent">
+                            <HelpCircle size={28} />
+                            <h3 className="text-xl font-bold">1. Die kuriose Frage</h3>
+                         </div>
+                         <p className="text-gray-300 text-sm leading-relaxed">
+                            Der Spielleiter (oder die KI) stellt eine seltsame Frage, auf die niemand die Antwort kennt.
+                         </p>
+                      </div>
+
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                         <div className="flex items-center gap-3 mb-3 text-brand-accent">
+                            <PenTool size={28} />
+                            <h3 className="text-xl font-bold">2. Kreativ Lügen</h3>
+                         </div>
+                         <p className="text-gray-300 text-sm leading-relaxed">
+                            Erfinde eine Antwort, die <b>glaubwürdig</b> klingt! Ziel ist es, dass die anderen Spieler auf deine Lüge hereinfallen.
+                         </p>
+                      </div>
+
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                         <div className="flex items-center gap-3 mb-3 text-brand-accent">
+                            <CheckCircle2 size={28} />
+                            <h3 className="text-xl font-bold">3. Die Wahrheit finden</h3>
+                         </div>
+                         <p className="text-gray-300 text-sm leading-relaxed">
+                            Alle Antworten werden gemischt (inklusive der Wahrheit). Versuche, die <b>echte</b> Antwort zu erraten.
+                         </p>
+                      </div>
+
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                         <div className="flex items-center gap-3 mb-3 text-brand-accent">
+                            <Medal size={28} />
+                            <h3 className="text-xl font-bold">4. Punkte sammeln</h3>
+                         </div>
+                         <ul className="text-gray-300 text-sm space-y-2">
+                            <li className="flex gap-2"><span>✅</span> <b>+1 Punkt</b> wenn du die Wahrheit tippst.</li>
+                            <li className="flex gap-2"><span>😈</span> <b>+1 Punkt</b> für jeden Spieler, der auf deine Lüge reinfällt.</li>
+                         </ul>
+                      </div>
+                   </div>
+
+                   {isHost && (
+                       <div className="mt-8 text-center">
+                          <Button onClick={() => dispatch({ type: 'TOGGLE_RULES', payload: { show: false } })} className="px-8">
+                             Alles klar, verstanden!
+                          </Button>
+                          <p className="text-[10px] text-white/30 mt-2 uppercase tracking-widest">Nur der Host kann dieses Fenster für alle schließen</p>
+                       </div>
+                   )}
+                   {!isHost && (
+                       <div className="mt-8 text-center text-purple-300 animate-pulse text-sm">
+                          Warte auf den Host, um das Spiel fortzusetzen...
+                       </div>
+                   )}
+                </div>
+             </div>
+          </div>
+      );
+  };
+
   return (
     <div className="min-h-screen bg-brand-dark text-brand-light p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden">
+      {renderRulesModal()}
+
       {localPlayerId && (
         <div className="fixed top-2 right-2 md:top-6 md:right-6 z-50">
             <button onClick={leaveSession} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg border-2 border-red-400"><LogOut size={24} /></button>
@@ -772,7 +884,7 @@ const App: React.FC = () => {
       {isHost && <div className="fixed bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/20 font-mono tracking-widest uppercase z-50">RAUM: {roomCode}</div>}
 
       <div className="max-w-4xl mx-auto">
-        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
+        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
 
         {localPlayerId && gameState.phase !== GamePhase.LOBBY && (
           <div className="animate-fade-in">

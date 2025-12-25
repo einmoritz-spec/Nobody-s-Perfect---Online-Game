@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -53,8 +53,9 @@ export const Resolution: React.FC<ResolutionProps> = ({
   gameMode = 'classic',
   roastData
 }) => {
-  const [hintDismissed, setHintDismissed] = useState(false);
-  
+  const answerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const roastRef = useRef<HTMLDivElement | null>(null);
+
   const getRoundSummary = () => {
     const votesForAnswer: Record<string, Player[]> = {};
     answers.forEach(a => votesForAnswer[a.id] = []);
@@ -117,6 +118,29 @@ export const Resolution: React.FC<ResolutionProps> = ({
 
   const showBigRevealButton = !allRevealed && canControlFlow;
 
+  // --- AUTO SCROLL EFFECTS ---
+  
+  // 1. Scroll to newly revealed answer
+  useEffect(() => {
+    const latestRevealedId = revealedAnswerIds[revealedAnswerIds.length - 1];
+    if (latestRevealedId && answerRefs.current[latestRevealedId]) {
+       // Timeout auf 300ms erhöht für bessere Mobile-Kompatibilität
+       setTimeout(() => {
+          answerRefs.current[latestRevealedId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+       }, 300);
+    }
+  }, [revealedAnswerIds]);
+
+  // 2. Scroll to roast if it appears
+  useEffect(() => {
+      if (showRoast && roastRef.current) {
+          setTimeout(() => {
+             roastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
+      }
+  }, [showRoast]);
+
+
   return (
     <div className="max-w-3xl mx-auto animate-fade-in space-y-6 pb-48 px-2">
       <div className="text-center space-y-2 pt-4">
@@ -142,7 +166,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
       </div>
 
       {showRoast && (
-          <div className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative">
+          <div ref={roastRef} className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20">
             <div className="flex-shrink-0">
                 <Avatar avatar={botRoaster!.avatar} name={botRoaster!.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
@@ -170,8 +194,9 @@ export const Resolution: React.FC<ResolutionProps> = ({
           return (
             <div 
               key={ans.id} 
+              ref={el => { answerRefs.current[ans.id] = el }}
               className={`
-                relative overflow-hidden rounded-xl border-2 transition-all duration-300
+                relative overflow-hidden rounded-xl border-2 transition-all duration-300 scroll-mt-24
                 ${isRevealedToPublic 
                   ? (ans.isCorrect ? 'bg-green-900/40 border-green-500/60' : 'bg-white/10 border-white/20 shadow-lg') 
                   : 'bg-white/5 border-white/5'}
