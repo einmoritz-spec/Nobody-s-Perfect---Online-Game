@@ -1,4 +1,5 @@
 
+
 export type PlayerId = string;
 
 export type BotPersonality = 'beginner' | 'pro' | 'troll';
@@ -103,6 +104,7 @@ export type NetworkAction =
   | { type: 'SUBMIT_FAKE'; payload: { playerId: string; text: string } }
   | { type: 'VOTE'; payload: { playerId: string; answerId: string } }
   | { type: 'AWARD_POINT'; payload: { playerId: string } }
+  | { type: 'MANAGE_SCORE'; payload: { playerId: string; amount: number } }
   | { type: 'REVEAL_ANSWER'; payload: { answerId: string } }
   | { type: 'NEXT_ROUND' }
   | { type: 'END_GAME' }

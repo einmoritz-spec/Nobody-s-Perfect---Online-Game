@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
@@ -120,12 +121,29 @@ export const Resolution: React.FC<ResolutionProps> = ({
   const handleReveal = (ans: Answer) => {
     onRevealAnswer(ans.id);
     if (ans.isCorrect) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22c55e', '#fbbf24', '#ffffff']
-      });
+      if (isHarryPotterMode) {
+          // MAGISCHER EFFEKT (STERNE)
+          confetti({
+            particleCount: 80,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: ['#FFD700', '#C0C0C0', '#ffffff'], // Gold, Silver, White
+            shapes: ['star'],
+            gravity: 0.5,
+            scalar: 1.2,
+            drift: 0,
+            ticks: 200,
+            startVelocity: 30
+          });
+      } else {
+          // STANDARD EFFEKT
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#22c55e', '#fbbf24', '#ffffff']
+          });
+      }
     }
   };
 
@@ -166,6 +184,18 @@ export const Resolution: React.FC<ResolutionProps> = ({
       }
   }, [showRoast]);
 
+  // Helper zum Rendern von Fettgedrucktem Text
+  const renderRoastText = (text: string) => {
+      // Split bei **...**
+      const parts = text.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="font-black text-pink-700 bg-pink-100/50 px-1 rounded">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+  };
+
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in space-y-6 pb-48 px-2 relative">
@@ -192,19 +222,21 @@ export const Resolution: React.FC<ResolutionProps> = ({
       </div>
 
       {showRoast && botRoaster && (
-          <div ref={roastRef} className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-3xl mx-auto">
-            <div className="flex-shrink-0">
+          <div ref={roastRef} className="my-6 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-2xl mx-auto">
+            <div className="flex-shrink-0 pt-2">
                 <Avatar avatar={botRoaster.avatar} name={botRoaster.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
-            <div className="relative bg-white text-brand-dark p-4 rounded-2xl rounded-tl-none shadow-2xl flex-1 border-2 border-pink-500">
-                <div className="absolute -top-3 -right-3 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest transform rotate-6 animate-pulse">
-                  Troll-Alarm!
-                </div>
-                <p className="font-bold text-sm mb-1 text-pink-600 uppercase tracking-wide">
-                  {botRoaster.name} roastet {roastData!.targetName}:
+            
+            {/* Sprechblase */}
+            <div className="relative bg-white text-brand-dark p-5 rounded-2xl shadow-2xl flex-1 border-2 border-pink-500 before:content-[''] before:absolute before:top-6 before:-left-3 before:w-0 before:h-0 before:border-t-[10px] before:border-t-transparent before:border-r-[12px] before:border-r-pink-500 before:border-b-[10px] before:border-b-transparent">
+                <div className="absolute top-6 -left-[9px] w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-white border-b-[8px] border-b-transparent z-10"></div>
+                
+                <p className="font-bold text-xs mb-2 text-pink-600 uppercase tracking-wide flex items-center gap-2">
+                  <span className="bg-pink-100 px-2 py-0.5 rounded-full">{botRoaster.name}</span>
+                   roastet {roastData!.targetName}
                 </p>
-                <p className="text-lg font-serif italic leading-tight">
-                  "{roastData!.text}"
+                <p className="text-lg font-serif italic leading-relaxed text-gray-800">
+                  "{renderRoastText(roastData!.text)}"
                 </p>
             </div>
           </div>

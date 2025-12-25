@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_IMAGES, BotPersonality, GameMode, RoundHistory } from './types';
 import { Lobby } from './components/Lobby';
@@ -11,7 +12,7 @@ import { Avatar } from './components/ui/Avatar';
 import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
-import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal, Trophy } from 'lucide-react';
+import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal, Trophy, Plus, Minus } from 'lucide-react';
 import { CATEGORIES, QUESTIONS, HP_QUESTIONS } from './questions';
 
 // --- HELPER ---
@@ -66,6 +67,23 @@ const SESSION_KEY = 'nobodyperfect-session-v1';
 const STATE_RECOVERY_KEY = 'nobodyperfect-last-state';
 const AI_GM_ID = 'AI_GM_HOST';
 const HECKLER_ID = 'TROLL_TORBEN_SPECTATOR';
+
+// Notfall-Antworten für Bots, falls die API komplett ausfällt
+const FALLBACK_BOT_ANSWERS = [
+  "Das ist sicher eine Falle.",
+  "Ein historisches Werkzeug aus dem 18. Jahrhundert.",
+  "Hat bestimmt was mit Essen zu tun.",
+  "Ein sehr altes Gesetz aus dem Mittelalter.",
+  "Klingt wie ein seltenes Tier.",
+  "Bestimmt etwas Unanständiges.",
+  "Ein Teil vom Schiff.",
+  "42.",
+  "Das weiß nur der Spielleiter.",
+  "Klingt total erfunden.",
+  "Eine spezielle Art von Werkzeug.",
+  "Ein religiöses Ritual.",
+  "Eine Krankheit bei Schafen."
+];
 
 const PEER_CONFIG = {
   debug: 1, 
@@ -192,6 +210,27 @@ const App: React.FC = () => {
   const getAiInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
   const cleanJsonString = (text: string): string => text.replace(/```json\n?|```/g, '').trim();
 
+  // Helper für API Calls mit Fallback-Modell
+  const safeGenerateContent = async (ai: GoogleGenAI, prompt: string) => {
+      try {
+          return await ai.models.generateContent({ 
+            model: 'gemini-3-flash-preview', 
+            contents: prompt
+          });
+      } catch (e) {
+          console.warn("Primary model (Gemini 3) failed, trying fallback to Gemini 2.0 Flash Exp...", e);
+          try {
+            return await ai.models.generateContent({ 
+                model: 'gemini-2.0-flash-exp', 
+                contents: prompt
+            });
+          } catch (e2) {
+             console.error("Fallback model also failed.", e2);
+             throw e2; // Re-throw to be handled by caller
+          }
+      }
+  };
+
   // --- NETWORK ---
   const broadcastState = (state: GameState) => {
     connectionsRef.current.forEach(c => {
@@ -309,8 +348,32 @@ const App: React.FC = () => {
       });
       
       conn.on('close', () => {
-          // Versuche Reconnect bei Verbindungsabbruch zum Host
           console.warn("Connection to host closed.");
+          
+          // --- HOST MIGRATION (Emergency) ---
+          // Wenn der Host weg ist, prüfen wir, ob wir der nächste Host sein sollten.
+          const currentPlayers = gameStateRef.current.players;
+          const me = currentPlayers.find(p => p.id === clientId);
+          
+          if (me && !me.isHost && hasJoinedSuccessfully) {
+             const candidates = currentPlayers.filter(p => !p.isBot && !p.isHeckler);
+             // Sortieren nach ID (oder Beitrittsreihenfolge, wenn möglich. ID ist hier einfacher Determinismus)
+             const sorted = candidates.sort((a,b) => a.id.localeCompare(b.id));
+             
+             if (sorted.length > 0 && sorted[0].id === me.id) {
+                 // Ich bin der Auserwählte!
+                 console.log("Host disconnected. Promoting self to Host.");
+                 setIsHost(true);
+                 // Da wir die Peer-Verbindung verloren haben, können wir keine Nachrichten an andere senden,
+                 // aber wir können den Status lokal übernehmen. 
+                 // In einem reinen P2P Mesh müsste man nun alle reconnecten.
+                 // Hier retten wir zumindest das UI für den neuen Admin.
+                 setGameState(prev => ({
+                     ...prev,
+                     players: prev.players.map(p => p.id === me.id ? {...p, isHost: true} : p)
+                 }));
+             }
+          }
       });
     });
 
@@ -335,17 +398,17 @@ const App: React.FC = () => {
 
   const leaveSession = () => {
     if (window.confirm("Willst du das Spiel wirklich verlassen?")) {
-      // 1. Wenn wir kein Host sind, sagen wir dem Host, dass er uns löschen soll
-      if (localPlayerId && !isHost) {
+      // 1. Sich selbst entfernen. WICHTIG: Auch als Host feuern wir das ab!
+      if (localPlayerId) {
           dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: localPlayerId } });
       }
 
-      // 2. Kurz warten, damit die Nachricht rausgeht, dann lokal aufräumen
+      // 2. Kurz warten, damit die Nachricht rausgeht und der State broadcastet wird (Host Migration!)
       setTimeout(() => {
           localStorage.removeItem(SESSION_KEY);
           localStorage.removeItem(STATE_RECOVERY_KEY);
           window.location.reload();
-      }, 150);
+      }, 500); // Längerer Timeout, damit der Host den neuen State noch broadcasten kann
     }
   };
 
@@ -378,7 +441,13 @@ const App: React.FC = () => {
         // Wenn der Host geht, gib die Krone an den nächsten menschlichen Spieler weiter.
         const wasHostRemoved = playerToRemove?.isHost;
         if (wasHostRemoved) {
-             const newHostCandidate = newPlayers.find(p => !p.isBot && !p.isHeckler);
+             // Wähle Kandidaten: Kein Bot, kein Heckler
+             const candidates = newPlayers.filter(p => !p.isBot && !p.isHeckler);
+             // Sortiere deterministisch (z.B. nach ID), damit alle Clients (falls sie Logik hätten) zum selben Schluss kommen
+             const sortedCandidates = candidates.sort((a,b) => a.id.localeCompare(b.id));
+             
+             const newHostCandidate = sortedCandidates[0];
+             
              if (newHostCandidate) {
                  newPlayers = newPlayers.map(p => 
                     p.id === newHostCandidate.id ? { ...p, isHost: true } : p
@@ -506,6 +575,18 @@ const App: React.FC = () => {
         }
         return { ...state, votes: nextV };
       }
+      case 'AWARD_POINT': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, score: p.score + 1 } : p), awardedBonusIds: [...state.awardedBonusIds, action.payload.playerId] };
+      case 'MANAGE_SCORE': {
+        // Host manuelles Score Management (+/-)
+        return {
+           ...state,
+           players: state.players.map(p => 
+             p.id === action.payload.playerId 
+                ? { ...p, score: Math.max(0, p.score + action.payload.amount) }
+                : p
+           )
+        };
+      }
       case 'NEXT_ROUND': {
         const historyEntry: RoundHistory = { question: state.question, correctAnswerText: state.correctAnswerText, answers: [...state.submittedAnswers], votes: { ...state.votes } };
         let nGm = '';
@@ -540,7 +621,6 @@ const App: React.FC = () => {
       case 'RESET_GAME': return { ...INITIAL_STATE, players: state.players.map(p => ({ ...p, score: 0 })), phase: GamePhase.LOBBY };
       case 'ADD_BOT': return { ...state, players: [...state.players, { id: action.payload.botId, name: action.payload.name, avatar: action.payload.avatar, botPersonality: action.payload.personality, score: 0, isBot: true }] };
       case 'REVEAL_ANSWER': return { ...state, revealedAnswerIds: [...state.revealedAnswerIds, action.payload.answerId] };
-      case 'AWARD_POINT': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, score: p.score + 1 } : p), awardedBonusIds: [...state.awardedBonusIds, action.payload.playerId] };
       case 'SET_ROAST': return { ...state, roastData: action.payload };
       case 'SET_FINAL_ROAST': return { ...state, finalRoast: action.payload.text };
       case 'SYNC_STATE': return action.payload;
@@ -611,10 +691,8 @@ const App: React.FC = () => {
           prompt = `Nobody's Perfect: Harry Potter Universum. Typ: ${personality}. Erfinde eine kuriose Frage über einen sehr unbekannten Zauberspruch, ein magisches Wesen oder ein Objekt aus der Harry Potter Welt. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
       }
 
-      const resp = await ai.models.generateContent({ 
-        model: 'gemini-3-flash-preview', 
-        contents: prompt
-      });
+      // Use safeGenerateContent instead of direct call
+      const resp = await safeGenerateContent(ai, prompt);
       
       const data = extractAndParseJson(resp.text || '{}');
       
@@ -657,52 +735,44 @@ const App: React.FC = () => {
 
       const contextPrefix = isHP ? "Harry Potter Universum Quiz." : "Allgemeinwissen Quiz.";
 
+      // Helper function to safely generate and submit answers for a group
+      const generateForGroup = async (groupName: string, groupBots: Player[], prompt: string) => {
+          if (groupBots.length === 0) return;
+          try {
+             const resp = await safeGenerateContent(ai, prompt);
+             const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
+             groupBots.forEach((b, i) => {
+                  if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 500 + i * 800 + (Math.random() * 500));
+              });
+          } catch(e) {
+             console.error(`Bot generation failed for ${groupName}, using fallback`, e);
+             // FALLBACK: Pick random answers from pool
+              groupBots.forEach((b, i) => {
+                  const randomAns = FALLBACK_BOT_ANSWERS[Math.floor(Math.random() * FALLBACK_BOT_ANSWERS.length)];
+                   setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: randomAns } }), 1000 + i * 1000);
+              });
+          }
+      };
+
       // 1. TROLLS: Lustig, absurd, aber passend
       if (trolls.length > 0) {
-          promises.push((async () => {
-              const resp = await ai.models.generateContent({ 
-                  model: 'gemini-3-flash-preview', 
-                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${trolls.length} Spieler lustige, absurde Quatsch-Antworten, die aber grammatikalisch/thematisch als Antwort durchgehen könnten. Max 8 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
-              });
-              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
-              trolls.forEach((b, i) => {
-                  if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 500 + i * 1000);
-              });
-          })());
+          promises.push(generateForGroup('trolls', trolls, `${contextPrefix} Frage: "${q}". Erfinde für ${trolls.length} Spieler lustige, absurde Quatsch-Antworten, die aber grammatikalisch/thematisch als Antwort durchgehen könnten. Max 8 Wörter. Keine Punkte am Ende. JSON Array von Strings.`));
       }
 
       // 2. PROS: Glaubwürdig
       if (pros.length > 0) {
-          promises.push((async () => {
-              const resp = await ai.models.generateContent({ 
-                  model: 'gemini-3-flash-preview', 
-                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${pros.length} Spieler absolut glaubwürdige, lexikon-artige Lügen. Max 10 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
-              });
-              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
-              pros.forEach((b, i) => {
-                  if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 200 + i * 800);
-              });
-          })());
+          promises.push(generateForGroup('pros', pros, `${contextPrefix} Frage: "${q}". Erfinde für ${pros.length} Spieler absolut glaubwürdige, lexikon-artige Lügen. Max 10 Wörter. Keine Punkte am Ende. JSON Array von Strings.`));
       }
 
       // 3. BEGINNERS: Simpel
       if (beginners.length > 0) {
-          promises.push((async () => {
-              const resp = await ai.models.generateContent({ 
-                  model: 'gemini-3-flash-preview', 
-                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${beginners.length} Spieler simple, etwas plumpe Lügen, die man leicht durchschaut. Max 6 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
-              });
-              const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
-              beginners.forEach((b, i) => {
-                   if (ans[i]) setTimeout(() => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: b.id, text: cleanAnswer(ans[i]) } }), 1000 + i * 1000);
-              });
-          })());
+          promises.push(generateForGroup('beginners', beginners, `${contextPrefix} Frage: "${q}". Erfinde für ${beginners.length} Spieler simple, etwas plumpe Lügen, die man leicht durchschaut. Max 6 Wörter. Keine Punkte am Ende. JSON Array von Strings.`));
       }
 
       await Promise.all(promises);
 
     } catch(e) {
-        console.error("Bot generation failed", e);
+        console.error("Bot generation failed globally", e);
     } finally { 
         botProcessingRef.current = false; 
     }
@@ -763,17 +833,17 @@ const App: React.FC = () => {
 
       try {
           const ai = getAiInstance();
-          const resp = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview',
-              contents: `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz.
+          const prompt = `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz.
               Frage: "${gameState.question}".
               Spieler "${victim.player.name}" hat tatsächlich geglaubt, die Antwort sei: "${victim.answer.text}".
 
               Aufgabe: Roaste ${victim.player.name} in 2-3 Sätzen dafür. 
               - Nutze MAXIMAL EINE Jugendsprache-Phrase (z.B. "Uff", "Lost", "Digga").
               - Der Fokus liegt darauf, wie lächerlich der Inhalt der Antwort "${victim.answer.text}" ist. 
-              - Mache dich konkret darüber lustig, dass jemand so etwas Absurdes für wahr hält.`
-          });
+              - Mache dich konkret darüber lustig, dass jemand so etwas Absurdes für wahr hält.
+              - **WICHTIG:** Markiere die Pointe oder die härteste Beleidigung fett, indem du sie mit zwei Sternchen umschließt (z.B. **du Lauch**).`;
+
+          const resp = await safeGenerateContent(ai, prompt);
           const text = resp.text?.trim() || "Uff. Wie kann man das nur glauben?";
           
           dispatch({ 
@@ -811,15 +881,13 @@ const App: React.FC = () => {
 
       try {
           const ai = getAiInstance();
-          const resp = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview',
-              contents: `Du bist "Troll Torben". Das Spiel ist vorbei. 
+          const prompt = `Du bist "Troll Torben". Das Spiel ist vorbei. 
               Der Verlierer ist: ${loserName} mit nur ${loserScore} Punkten.
               Aufgabe: Roaste den Verlierer gnadenlos für diesen letzten Platz.
               Umfang: 2-3 kurze, zynische Sätze.
-              Nutze Jugendsprache (z.B. "lost", "bodenlos").`
-          });
-          
+              Nutze Jugendsprache (z.B. "lost", "bodenlos").`;
+
+          const resp = await safeGenerateContent(ai, prompt);
           const text = resp.text?.trim();
           if (!text) throw new Error("No text generated");
 
@@ -1080,7 +1148,28 @@ const App: React.FC = () => {
                              </div>
                          </div>
                          <div className="flex items-center gap-2">
-                             <span className="font-mono font-bold text-lg">{p.score}</span>
+                             <div className="flex flex-col items-center">
+                                <span className="font-mono font-bold text-lg mb-1">{p.score}</span>
+                                {isHost && (
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: -1 } }) }}
+                                            className="w-9 h-9 flex items-center justify-center bg-red-500/20 hover:bg-red-500/50 rounded-lg text-red-300 transition-colors border border-red-500/30"
+                                            title="-1 Punkt"
+                                        >
+                                            <Minus size={16} strokeWidth={3} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: 1 } }) }}
+                                            className="w-9 h-9 flex items-center justify-center bg-green-500/20 hover:bg-green-500/50 rounded-lg text-green-300 transition-colors border border-green-500/30"
+                                            title="+1 Punkt"
+                                        >
+                                            <Plus size={16} strokeWidth={3} />
+                                        </button>
+                                    </div>
+                                )}
+                             </div>
+                             
                              {isHost && p.id !== localPlayerId && (
                                 <button 
                                   onClick={(e) => {
@@ -1090,7 +1179,7 @@ const App: React.FC = () => {
                                           dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } });
                                       }
                                   }}
-                                  className="relative z-20 p-2 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
+                                  className="relative z-20 p-2 ml-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
                                   title="Spieler kicken"
                                 >
                                    <UserX size={16} />
@@ -1209,8 +1298,18 @@ const App: React.FC = () => {
         ? available[Math.floor(Math.random() * available.length)] 
         : `${personality === 'pro' ? 'Profi' : personality === 'beginner' ? 'Noob' : 'Bot'} ${Math.floor(Math.random() * 100)}`;
 
-    // Random Monster Avatar for Bots
-    const av = AVATAR_IMAGES.find(c => !gameState.players.map(pl => pl.avatar).includes(c)) || AVATAR_IMAGES[Math.floor(Math.random() * AVATAR_IMAGES.length)];
+    // NEW LOGIC: Random Avatar from Available
+    const usedAvatars = gameState.players.map(pl => pl.avatar);
+    const availableAvatars = AVATAR_IMAGES.filter(img => !usedAvatars.includes(img));
+    
+    let av: string;
+    
+    if (availableAvatars.length > 0) {
+        av = availableAvatars[Math.floor(Math.random() * availableAvatars.length)];
+    } else {
+        // Fallback: Pick random from all
+        av = AVATAR_IMAGES[Math.floor(Math.random() * AVATAR_IMAGES.length)];
+    }
     
     dispatch({ type: 'ADD_BOT', payload: { botId: `bot-${Math.random().toString(36).substr(2,9)}`, name: n, avatar: av, personality } });
   }

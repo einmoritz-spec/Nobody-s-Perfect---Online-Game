@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Player, AVATAR_IMAGES, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle, Wand2 } from 'lucide-react';
+import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle, Wand2, ZoomIn } from 'lucide-react';
 
 interface LobbyProps {
   players: Player[];
@@ -47,6 +48,10 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
   const [isHPMode, setIsHPMode] = useState(false);
   const [randomAvatars, setRandomAvatars] = useState<string[]>([]);
+  
+  // State für Long-Press Preview
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Check if Troll Torben is present
   const isTrollModeActive = players.some(p => p.isHeckler);
@@ -57,11 +62,12 @@ export const Lobby: React.FC<LobbyProps> = ({
       onToggleHPMode?.(newVal);
   };
 
-  // Zufällige Auswahl von 8 Avataren beim Öffnen von Join/Create
+  // Zufällige Auswahl von Avataren beim Öffnen von Join/Create
   useEffect(() => {
     if (view === 'create' || view === 'join') {
       const shuffled = [...AVATAR_IMAGES].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, 8);
+      // Wir nehmen mehr Avatare, damit die Auswahl voll wirkt, aber nicht scrollt
+      const selected = shuffled.slice(0, 15); 
       setRandomAvatars(selected);
       // Wähle automatisch den ersten der neuen Auswahl, falls der alte nicht dabei ist
       if (!selected.includes(selectedAvatar)) {
@@ -69,6 +75,21 @@ export const Lobby: React.FC<LobbyProps> = ({
       }
     }
   }, [view]);
+
+  // --- Long Press Logic ---
+  const handlePressStart = (avatarUrl: string) => {
+    pressTimer.current = setTimeout(() => {
+      setPreviewAvatar(avatarUrl);
+    }, 300); // Nach 300ms gedrückt halten geht die Vorschau auf
+  };
+
+  const handlePressEnd = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    setPreviewAvatar(null);
+  };
 
   // --- BOT SELECTION MODAL ---
   const renderBotModal = () => {
@@ -174,11 +195,29 @@ export const Lobby: React.FC<LobbyProps> = ({
     availableAvatars: string[] = AVATAR_IMAGES,
     isLargeMode: boolean = false
   ) => (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-purple-200 block">Wähle deinen Monster-Avatar</label>
+    <div className="space-y-3 relative">
+      
+      {/* PREVIEW OVERLAY */}
+      {previewAvatar && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in" onPointerUp={handlePressEnd} onTouchEnd={handlePressEnd}>
+           <div className="relative">
+              <img src={previewAvatar} alt="Preview" className="w-64 h-64 sm:w-80 sm:h-80 object-cover rounded-full border-4 border-brand-accent shadow-[0_0_50px_rgba(245,158,11,0.5)]" />
+              <div className="absolute -bottom-10 left-0 right-0 text-center text-white font-bold animate-pulse">Vorschau</div>
+           </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center">
+         <label className="text-sm font-medium text-purple-200 block">Wähle deinen Monster-Avatar</label>
+         <span className="text-[10px] text-white/40 flex items-center gap-1"><ZoomIn size={10} /> Gedrückt halten für Zoom</span>
+      </div>
+      
       <div className={`
-        grid gap-3 p-1
-        ${isLargeMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-4 sm:grid-cols-5 max-h-64 overflow-y-auto custom-scrollbar'}
+        grid p-1
+        ${isLargeMode 
+            ? 'grid-cols-5 gap-2 sm:grid-cols-5 sm:gap-3' // Kompakteres Grid auf Mobile
+            : 'grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar'
+        }
       `}>
         {availableAvatars.map((imgUrl) => {
           const isTaken = takenColors.includes(imgUrl) && imgUrl !== currentSelection;
@@ -188,26 +227,32 @@ export const Lobby: React.FC<LobbyProps> = ({
             type="button"
             disabled={isTaken}
             onClick={() => onSelect(imgUrl)}
+            // --- POINTER EVENTS FÜR LONG PRESS ---
+            onPointerDown={() => handlePressStart(imgUrl)}
+            onPointerUp={handlePressEnd}
+            onPointerLeave={handlePressEnd}
+            onContextMenu={(e) => e.preventDefault()} // Verhindert Rechtsklick-Menü auf Mobile
+            // -------------------------------------
             className={`
-              relative aspect-square rounded-full transition-all flex items-center justify-center overflow-hidden border-2 
+              relative aspect-square rounded-full transition-all flex items-center justify-center overflow-hidden border-2 touch-manipulation select-none
               ${currentSelection === imgUrl 
-                ? 'border-brand-accent scale-105 ring-4 ring-brand-accent/50 z-10 shadow-2xl' 
+                ? 'border-brand-accent scale-105 ring-2 sm:ring-4 ring-brand-accent/50 z-10 shadow-2xl' 
                 : isTaken 
                   ? 'border-transparent opacity-20 cursor-not-allowed grayscale'
-                  : 'border-white/10 hover:border-white/30 hover:scale-105'
+                  : 'border-white/10 hover:border-white/30 active:scale-95'
               }
             `}
-            title={isTaken ? 'Bereits vergeben' : 'Wählen'}
+            title={isTaken ? 'Bereits vergeben' : 'Wählen (Gedrückt halten für Vorschau)'}
           >
-            <img src={imgUrl} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={imgUrl} alt="Avatar" className="w-full h-full object-cover pointer-events-none" />
             
             {currentSelection === imgUrl && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 animate-fade-in">
-                <Check size={isLargeMode ? 32 : 20} strokeWidth={isLargeMode ? 5 : 4} className="text-brand-accent drop-shadow-md" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 animate-fade-in pointer-events-none">
+                <Check size={isLargeMode ? 24 : 20} strokeWidth={isLargeMode ? 4 : 4} className="text-brand-accent drop-shadow-md" />
               </div>
             )}
             {isTaken && (
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                  <Lock size={16} className="text-white/50" />
               </div>
             )}
@@ -247,7 +292,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               />
             </div>
             
-            {/* Große, zufällige Auswahl (8 Bilder) */}
+            {/* Große, zufällige Auswahl (mit Long Press) */}
             {renderAvatarPicker(selectedAvatar, setSelectedAvatar, [], randomAvatars, true)}
 
             <Button 
