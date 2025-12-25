@@ -74,6 +74,7 @@ export interface GameState {
   timerEndTime: number | null; // Neuer Timer State
   timerDuration: number | null; // Gesamtdauer des Timers für Progress Bar
   showRules: boolean; // Zeigt das Regelfenster für alle an
+  isHarryPotterMode?: boolean; // Neuer Harry Potter Modus Flag
   roastData?: {
     targetName: string;
     botName: string;
@@ -90,6 +91,7 @@ export type NetworkAction =
   | { type: 'REMOVE_PLAYER'; payload: { playerId: string } }
   | { type: 'ADD_BOT'; payload: { botId: string; name: string; avatar: string; personality: BotPersonality } }
   | { type: 'TOGGLE_TROLL_MODE'; payload: { enable: boolean } } 
+  | { type: 'TOGGLE_HP_MODE'; payload: { enable: boolean } }
   | { type: 'START_GAME'; payload: { mode: GameMode } } // Payload geändert
   | { type: 'SUBMIT_GM'; payload: { question: string; correct: string; fake: string; category: string } }
   | { type: 'SUBMIT_FAKE'; payload: { playerId: string; text: string } }

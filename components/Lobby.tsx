@@ -4,7 +4,7 @@ import { Player, AVATAR_COLORS, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle } from 'lucide-react';
+import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle, Wand2 } from 'lucide-react';
 
 interface LobbyProps {
   players: Player[];
@@ -16,7 +16,8 @@ interface LobbyProps {
   onUpdatePlayer?: (updates: { avatar?: string }) => void;
   onAddBot?: (personality: BotPersonality) => void;
   onToggleTrollMode?: (enable: boolean) => void;
-  onToggleRules?: (show: boolean) => void; // Neu
+  onToggleRules?: (show: boolean) => void;
+  onToggleHPMode?: (enable: boolean) => void; // Neu
   isHost: boolean;
   roomCode?: string;
   connectionStatus: string;
@@ -33,6 +34,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onAddBot,
   onToggleTrollMode,
   onToggleRules,
+  onToggleHPMode,
   isHost,
   roomCode,
   connectionStatus
@@ -43,9 +45,16 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [view, setView] = useState<'main' | 'join' | 'create'>('main');
   const [showBotModal, setShowBotModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
+  const [isHPMode, setIsHPMode] = useState(false);
 
   // Check if Troll Torben is present
   const isTrollModeActive = players.some(p => p.isHeckler);
+
+  const toggleHP = () => {
+      const newVal = !isHPMode;
+      setIsHPMode(newVal);
+      onToggleHPMode?.(newVal);
+  };
 
   // --- BOT SELECTION MODAL ---
   const renderBotModal = () => {
@@ -320,7 +329,7 @@ export const Lobby: React.FC<LobbyProps> = ({
             <div 
               onClick={() => onToggleTrollMode?.(!isTrollModeActive)}
               className={`
-                cursor-pointer p-4 rounded-xl border transition-all flex items-center justify-between
+                cursor-pointer p-3 rounded-xl border transition-all flex items-center justify-between
                 ${isTrollModeActive ? 'bg-pink-900/40 border-pink-400' : 'bg-white/5 border-white/10 hover:bg-white/10'}
               `}
             >
@@ -329,15 +338,35 @@ export const Lobby: React.FC<LobbyProps> = ({
                     <Ghost size={20} />
                  </div>
                  <div className="flex flex-col text-left">
-                    <span className={`font-bold ${isTrollModeActive ? 'text-pink-300' : 'text-gray-300'}`}>Troll-Modus</span>
+                    <span className={`font-bold text-sm ${isTrollModeActive ? 'text-pink-300' : 'text-gray-300'}`}>Troll-Modus</span>
                     <span className="text-[10px] text-white/50">Troll Torben als fieser Zuschauer</span>
                  </div>
               </div>
-              {isTrollModeActive ? <ToggleRight size={28} className="text-pink-400" /> : <ToggleLeft size={28} className="text-gray-500" />}
+              {isTrollModeActive ? <ToggleRight size={24} className="text-pink-400" /> : <ToggleLeft size={24} className="text-gray-500" />}
+            </div>
+
+            {/* Harry Potter Modus Toggle */}
+            <div 
+              onClick={toggleHP}
+              className={`
+                cursor-pointer p-3 rounded-xl border transition-all flex items-center justify-between
+                ${isHPMode ? 'bg-amber-900/40 border-amber-400' : 'bg-white/5 border-white/10 hover:bg-white/10'}
+              `}
+            >
+              <div className="flex items-center gap-3">
+                 <div className={`p-2 rounded-lg ${isHPMode ? 'bg-amber-500/20 text-amber-300' : 'bg-gray-800 text-gray-400'}`}>
+                    <Wand2 size={20} />
+                 </div>
+                 <div className="flex flex-col text-left">
+                    <span className={`font-bold text-sm ${isHPMode ? 'text-amber-300' : 'text-gray-300'}`}>Harry Potter Modus</span>
+                    <span className="text-[10px] text-white/50">50 Fragen aus der Zauberwelt</span>
+                 </div>
+              </div>
+              {isHPMode ? <ToggleRight size={24} className="text-amber-400" /> : <ToggleLeft size={24} className="text-gray-500" />}
             </div>
 
             {/* Game Mode Selection */}
-            <div className="space-y-2 mt-4">
+            <div className="space-y-2 mt-4 pt-4 border-t border-white/10">
               <label className="text-xs text-purple-300 font-bold uppercase tracking-wider block">Spielmodus wählen</label>
               <div className="grid grid-cols-3 gap-2">
                 <button 

@@ -12,7 +12,7 @@ import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
 import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal } from 'lucide-react';
-import { CATEGORIES, QUESTIONS } from './questions';
+import { CATEGORIES, QUESTIONS, HP_QUESTIONS } from './questions';
 
 // --- HELPER ---
 function shuffle<T>(array: T[]): T[] {
@@ -97,6 +97,7 @@ const INITIAL_STATE: GameState = {
   timerEndTime: null,
   timerDuration: null,
   showRules: false,
+  isHarryPotterMode: false, // Default aus
   history: [],
   finalRoast: null
 };
@@ -213,14 +214,27 @@ const App: React.FC = () => {
     setRoomCode(newCode);
     setLocalPlayerId(hostId);
     setIsHost(true);
+    
     const peer = new Peer(`${APP_PREFIX}${newCode}`, PEER_CONFIG);
     peerRef.current = peer;
+    
     peer.on('open', () => {
       setConnectionStatus('connected');
       const p: Player = { id: hostId, name: playerName, score: 0, avatar, isHost: true };
       setGameState(prev => ({ ...prev, players: [p] }));
       localStorage.setItem(SESSION_KEY, JSON.stringify({ id: hostId, roomCode: newCode, name: playerName, avatar, isHost: true }));
     });
+    
+    peer.on('disconnected', () => {
+        console.warn('Host disconnected from server. Reconnecting...');
+        peer.reconnect();
+    });
+
+    peer.on('error', (err) => {
+        console.error('Host Error:', err);
+        // Ignore fatal errors here if possible, rely on reconnect logic for network issues
+    });
+
     peer.on('connection', (conn) => {
       connectionsRef.current.push(conn);
       conn.on('data', (d) => handleHostAction(d as NetworkAction));
@@ -236,7 +250,16 @@ const App: React.FC = () => {
     setIsHost(true);
     const peer = new Peer(`${APP_PREFIX}${code}`, PEER_CONFIG);
     peerRef.current = peer;
+    
     peer.on('open', () => setConnectionStatus('connected'));
+    
+    peer.on('disconnected', () => {
+        console.warn('Host (recovered) disconnected from server. Reconnecting...');
+        peer.reconnect();
+    });
+
+    peer.on('error', (err) => console.error('Recover Host Error:', err));
+
     peer.on('connection', (conn) => {
       connectionsRef.current.push(conn);
       conn.on('data', (d) => handleHostAction(d as NetworkAction));
@@ -251,16 +274,20 @@ const App: React.FC = () => {
     setLocalPlayerId(clientId);
     setIsHost(false);
     setRoomCode(code);
+    
     const peer = new Peer(PEER_CONFIG);
     peerRef.current = peer;
+    
     peer.on('open', () => {
       const conn = peer.connect(`${APP_PREFIX}${code}`, { reliable: true });
       hostConnectionRef.current = conn;
+      
       conn.on('open', () => {
         setConnectionStatus('connected');
         conn.send({ type: 'JOIN', payload: { id: clientId, name: playerName, score: 0, avatar } });
         localStorage.setItem(SESSION_KEY, JSON.stringify({ id: clientId, roomCode: code, name: playerName, avatar, isHost: false }));
       });
+
       conn.on('data', (d) => {
         const action = d as NetworkAction;
         if (action.type === 'SYNC_STATE') {
@@ -272,9 +299,6 @@ const App: React.FC = () => {
              return;
           }
           
-          // SCHUTZ gegen leere Updates: 
-          // Wenn wir bereits Spieler haben, akzeptieren wir kein Update mit 0 Spielern.
-          // Das passiert oft bei Verbindungsabbrüchen/Reconnects und verursacht den "Spieler (0)" Glitch.
           if (!isHost && gameStateRef.current.players.length > 0 && action.payload.players.length === 0) {
               return;
           }
@@ -283,8 +307,28 @@ const App: React.FC = () => {
           setHasJoinedSuccessfully(true);
         }
       });
+      
+      conn.on('close', () => {
+          // Versuche Reconnect bei Verbindungsabbruch zum Host
+          console.warn("Connection to host closed.");
+      });
     });
-    peer.on('error', () => setConnectionStatus('error'));
+
+    peer.on('disconnected', () => {
+        console.warn('Client disconnected from PeerServer. Reconnecting...');
+        peer.reconnect();
+    });
+
+    peer.on('error', (err) => {
+        console.error('Client Peer Error:', err);
+        // Nur kritische Fehler anzeigen, transiente Fehler ignorieren für bessere UX
+        if (err.type === 'peer-unavailable') {
+            setConnectionStatus('error');
+        } else if (err.type !== 'network' && err.type !== 'server-error' && err.type !== 'socket-error' && err.type !== 'socket-closed') {
+             // Zeige Fehler nur wenn es kein Netzwerk/Disconnect Fehler ist (die werden vom Reconnect handled)
+             // setConnectionStatus('error');
+        }
+    });
   };
 
   const leaveSession = () => {
@@ -499,6 +543,7 @@ const App: React.FC = () => {
         if (action.payload.enable) return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
         return { ...state, players: state.players.filter(p => !p.isHeckler) };
       }
+      case 'TOGGLE_HP_MODE': return { ...state, isHarryPotterMode: action.payload.enable };
       case 'TOGGLE_RULES': return { ...state, showRules: action.payload.show };
       default: return state;
     }
@@ -509,21 +554,39 @@ const App: React.FC = () => {
     setIsAiLoading(true);
     const cat = CATEGORIES.find(c => c.id === categoryInput) || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
     
+    // Fallback: Wähle eine echte Frage aus dem Pool
     const fallback = () => {
-      const pool = QUESTIONS[cat.id] || QUESTIONS['words'];
+      const isHP = gameStateRef.current.isHarryPotterMode;
+      const pool = isHP ? HP_QUESTIONS : (QUESTIONS[cat.id] || QUESTIONS['words']);
       const randomQ = pool[Math.floor(Math.random() * pool.length)];
       return {
           question: randomQ.q,
           correctAnswer: cleanAnswer(randomQ.a),
-          category: cat.id
+          category: isHP ? 'harry_potter' : cat.id
       };
     };
 
     try {
       const ai = getAiInstance();
+      const isHP = gameStateRef.current.isHarryPotterMode;
+
+      let prompt = `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+      
+      // SPEZIAL LOGIK FÜR TROLL BOT
+      if (personality === 'troll') {
+          if (isHP) {
+             prompt = `Du bist ein lustiger Troll im Harry Potter Universum. Erfinde eine absolut absurde, lustige QUATSCH-FRAGE, die mit Zauberei zu tun hat aber keinen echten Sinn ergibt (z.B. "Warum tragen Hauselfen keine Socken mit Sandalen?"). Dazu eine "korrekte" Antwort, die ebenso Quatsch ist. Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+          } else {
+             prompt = `Du bist der Spielleiter in einem Bluff-Spiel, aber du bist ein lustiger Troll. Erfinde eine absolut absurde, lustige QUATSCH-FRAGE, die eigentlich keinen Sinn ergibt (z.B. "Warum tragen Bananen keine Toupets?"). Dazu eine "korrekte" Antwort, die ebenso Quatsch ist. Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+          }
+      } else if (isHP) {
+          // SPEZIAL LOGIK FÜR HARRY POTTER MODUS (NICHT TROLL)
+          prompt = `Nobody's Perfect: Harry Potter Universum. Typ: ${personality}. Erfinde eine kuriose Frage über einen sehr unbekannten Zauberspruch, ein magisches Wesen oder ein Objekt aus der Harry Potter Welt. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+      }
+
       const resp = await ai.models.generateContent({ 
         model: 'gemini-3-flash-preview', 
-        contents: `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}` 
+        contents: prompt
       });
       
       const data = extractAndParseJson(resp.text || '{}');
@@ -540,7 +603,7 @@ const App: React.FC = () => {
       return { 
         question: data.question, 
         correctAnswer: cleanAnswer(data.correctAnswer), 
-        category: cat.id 
+        category: isHP ? 'harry_potter' : (personality === 'troll' ? 'nonsense' : cat.id)
       };
 
     } catch (e) {
@@ -556,6 +619,7 @@ const App: React.FC = () => {
     
     try {
       const ai = getAiInstance();
+      const isHP = gameStateRef.current.isHarryPotterMode;
       
       // Gruppiere Bots nach Persönlichkeit
       const trolls = bots.filter(b => b.botPersonality === 'troll');
@@ -564,12 +628,14 @@ const App: React.FC = () => {
 
       const promises = [];
 
+      const contextPrefix = isHP ? "Harry Potter Universum Quiz." : "Allgemeinwissen Quiz.";
+
       // 1. TROLLS: Lustig, absurd, aber passend
       if (trolls.length > 0) {
           promises.push((async () => {
               const resp = await ai.models.generateContent({ 
                   model: 'gemini-3-flash-preview', 
-                  contents: `Frage: "${q}". Erfinde für ${trolls.length} Spieler lustige, absurde Quatsch-Antworten, die aber grammatikalisch/thematisch als Antwort durchgehen könnten. Max 8 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${trolls.length} Spieler lustige, absurde Quatsch-Antworten, die aber grammatikalisch/thematisch als Antwort durchgehen könnten. Max 8 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
               });
               const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
               trolls.forEach((b, i) => {
@@ -583,7 +649,7 @@ const App: React.FC = () => {
           promises.push((async () => {
               const resp = await ai.models.generateContent({ 
                   model: 'gemini-3-flash-preview', 
-                  contents: `Frage: "${q}". Erfinde für ${pros.length} Spieler absolut glaubwürdige, lexikon-artige Lügen. Max 10 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${pros.length} Spieler absolut glaubwürdige, lexikon-artige Lügen. Max 10 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
               });
               const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
               pros.forEach((b, i) => {
@@ -597,7 +663,7 @@ const App: React.FC = () => {
           promises.push((async () => {
               const resp = await ai.models.generateContent({ 
                   model: 'gemini-3-flash-preview', 
-                  contents: `Frage: "${q}". Erfinde für ${beginners.length} Spieler simple, etwas plumpe Lügen, die man leicht durchschaut. Max 6 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
+                  contents: `${contextPrefix} Frage: "${q}". Erfinde für ${beginners.length} Spieler simple, etwas plumpe Lügen, die man leicht durchschaut. Max 6 Wörter. Keine Punkte am Ende. JSON Array von Strings.` 
               });
               const ans = JSON.parse(cleanJsonString(resp.text || '[]'));
               beginners.forEach((b, i) => {
@@ -648,7 +714,8 @@ const App: React.FC = () => {
       const votes = gameState.votes;
 
       for (const p of gameState.players) {
-          if (p.isHeckler) continue; // Heckler beleidigt sich nicht selbst
+          if (p.isHeckler) continue; 
+          if (p.isBot) continue; // WICHTIG: Keine Bots roasten
           
           const votedAnswerId = votes[p.id];
           if (!votedAnswerId) continue;
@@ -709,7 +776,8 @@ const App: React.FC = () => {
       if (roastProcessingRef.current) return;
       roastProcessingRef.current = true;
 
-      const sorted = [...currentPlayers.filter(p => !p.isHeckler)].sort((a,b) => b.score - a.score);
+      // Nur menschliche Verlierer roasten
+      const sorted = [...currentPlayers.filter(p => !p.isHeckler && !p.isBot)].sort((a,b) => b.score - a.score);
       const loser = sorted[sorted.length - 1];
       const loserName = loser ? loser.name : 'jemand';
       const loserScore = loser ? loser.score : 0;
@@ -829,20 +897,21 @@ const App: React.FC = () => {
 
      function renderUI() {
          return (
-            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4 animate-fade-in-down pointer-events-none">
-               <div className="bg-brand-dark/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto ring-4 ring-black/20">
+            // Positionierung: Auf Mobile unten mittig, auf Desktop oben links.
+            <div className="fixed z-40 w-full max-w-sm px-4 bottom-6 left-1/2 -translate-x-1/2 md:top-32 md:left-8 md:bottom-auto md:translate-x-0 md:w-auto md:max-w-xs animate-fade-in-down pointer-events-none">
+               <div className="bg-brand-dark/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-row items-center justify-between gap-4 pointer-events-auto ring-4 ring-black/20">
                   <div className="flex items-center gap-2 text-brand-accent font-bold uppercase text-xs whitespace-nowrap">
-                     <Timer size={16} /> Timer starten:
+                     <Timer size={16} /> Timer:
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex gap-2 w-full justify-end">
                     {[10, 30, 60].map(sec => (
                         <Button 
                            key={sec}
                            onClick={() => dispatch({ type: 'START_TIMER', payload: { duration: sec } })}
-                           className="flex-1 sm:flex-none py-1.5 text-xs h-9 min-w-[60px]"
+                           className="flex-1 sm:flex-none py-1.5 text-xs h-9 min-w-[40px]"
                            variant="secondary"
                         >
-                           {sec}s
+                           {sec}
                         </Button>
                     ))}
                   </div>
@@ -934,7 +1003,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark text-brand-light p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden">
+    <div className={`min-h-screen p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden ${gameState.isHarryPotterMode ? 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-900 to-slate-950 text-amber-50' : 'bg-brand-dark text-brand-light'}`}>
       {renderRulesModal()}
 
       {localPlayerId && (
@@ -945,7 +1014,7 @@ const App: React.FC = () => {
       {isHost && <div className="fixed top-2 left-2 md:top-6 md:left-6 text-[10px] md:text-xs text-white/30 font-mono tracking-widest uppercase z-50 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full border border-white/5 shadow-sm">RAUM: {roomCode}</div>}
 
       <div className="max-w-4xl mx-auto">
-        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
+        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleHPMode={(e) => dispatch({ type: 'TOGGLE_HP_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
 
         {localPlayerId && gameState.phase !== GamePhase.LOBBY && (
           <div className="animate-fade-in">
@@ -953,7 +1022,7 @@ const App: React.FC = () => {
               (localPlayerId === gameState.gameMasterId && !isAiGm) ? (
                 <div className="space-y-4">
                   <div className="flex justify-end"><Button variant="secondary" className="text-xs" onClick={async () => { const d = await generateAiContent("random"); dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } }); }} disabled={isAiLoading}>{isAiLoading ? <Loader2 className="animate-spin mr-2" /> : <Wand2 size={14} className="mr-2" />}KI-Vorschlag</Button></div>
-                  <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} />
+                  <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} isHarryPotterMode={gameState.isHarryPotterMode} />
                 </div>
               ) : (
                 <div className="text-center pt-20"><Avatar avatar={isAiGm ? "https://robohash.org/AI?set=set4" : (gm?.avatar || "")} size="3xl" className="mx-auto mb-6 border-8 border-brand-dark" /><h2 className="text-3xl font-bold">{isAiGm ? "KI-Monster" : gm?.name} wählt eine Frage...</h2></div>
@@ -986,7 +1055,7 @@ const App: React.FC = () => {
               (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} votes={gameState.votes} players={gameState.players} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
             )}
 
-            {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} />}
+            {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} isHarryPotterMode={gameState.isHarryPotterMode} />}
 
             {gameState.phase === GamePhase.FINAL_LEADERBOARD && <FinalLeaderboard players={gameState.players} onReset={() => dispatch({ type: 'RESET_GAME' })} isHost={isHost} history={gameState.history} gameMode={gameState.gameMode} />}
           </div>
