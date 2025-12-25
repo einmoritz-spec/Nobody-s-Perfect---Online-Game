@@ -811,31 +811,45 @@ const App: React.FC = () => {
   const gm = gameState.players.find(p => p.id === gameState.gameMasterId);
   const isAiGm = gameState.gameMasterId === AI_GM_ID;
 
-  // HOST TIMER CONTROLS
-  const renderHostTimerControls = () => {
-     if (!isHost || gameState.phase !== GamePhase.PLAYER_INPUT || gameState.timerEndTime) return null;
+  // TIMER CONTROLS
+  const renderTimerControls = () => {
+     // Zeige Controls nur in der PLAYER_INPUT Phase, wenn noch kein Timer läuft
+     if (gameState.phase !== GamePhase.PLAYER_INPUT || gameState.timerEndTime) return null;
      
-     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-brand-dark/90 backdrop-blur-lg border-t border-white/10 p-4 z-50 animate-fade-in-up">
-           <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-brand-accent font-bold uppercase text-xs">
-                 <Timer size={16} /> Timer starten:
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                {[10, 30, 60].map(sec => (
-                    <Button 
-                       key={sec}
-                       onClick={() => dispatch({ type: 'START_TIMER', payload: { duration: sec } })}
-                       className="flex-1 sm:flex-none py-2 text-sm h-10"
-                       variant="secondary"
-                    >
-                       {sec} Sek
-                    </Button>
-                ))}
-              </div>
-           </div>
-        </div>
-     );
+     const isGM = localPlayerId === gameState.gameMasterId;
+     const isAiMode = gameState.gameMode === 'ai';
+
+     // Bedingung 1: KI Modus -> Host darf Timer starten (auch wenn er Spieler ist)
+     if (isAiMode && isHost) return renderUI();
+
+     // Bedingung 2: Klassik/Host Modus -> Der aktuelle Spielleiter darf Timer starten (wenn er kein Bot ist)
+     if (!isAiMode && isGM) return renderUI();
+     
+     return null;
+
+     function renderUI() {
+         return (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4 animate-fade-in-down pointer-events-none">
+               <div className="bg-brand-dark/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto ring-4 ring-black/20">
+                  <div className="flex items-center gap-2 text-brand-accent font-bold uppercase text-xs whitespace-nowrap">
+                     <Timer size={16} /> Timer starten:
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    {[10, 30, 60].map(sec => (
+                        <Button 
+                           key={sec}
+                           onClick={() => dispatch({ type: 'START_TIMER', payload: { duration: sec } })}
+                           className="flex-1 sm:flex-none py-1.5 text-xs h-9 min-w-[60px]"
+                           variant="secondary"
+                        >
+                           {sec}s
+                        </Button>
+                    ))}
+                  </div>
+               </div>
+            </div>
+         );
+     }
   };
 
   const renderRulesModal = () => {
@@ -966,7 +980,7 @@ const App: React.FC = () => {
               ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} timerEndTime={gameState.timerEndTime} timerTotal={gameState.timerDuration} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
             )}
 
-            {renderHostTimerControls()}
+            {renderTimerControls()}
 
             {gameState.phase === GamePhase.VOTING && (
               (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} votes={gameState.votes} players={gameState.players} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>

@@ -4,7 +4,7 @@ import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, X, UserX, MessageCircle, Sparkles } from 'lucide-react';
+import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ResolutionProps {
@@ -56,6 +56,16 @@ export const Resolution: React.FC<ResolutionProps> = ({
   const answerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const roastRef = useRef<HTMLDivElement | null>(null);
 
+  // Helper für Darstellung
+  const botRoaster = roastData ? players.find(p => p.name === roastData.botName) : null;
+  const showRoast = !!(roastData && botRoaster && revealedAnswerIds.includes(roastData.answerId));
+  
+  // Refs zum Tracking des Scroll-Status
+  // Initialisiere mit aktueller Länge/Status, damit beim Mounten (z.B. nach Refresh oder Sync) NICHT gescrollt wird,
+  // sondern nur wenn NEUE Events eintreffen.
+  const prevRevealCount = useRef(revealedAnswerIds.length);
+  const wasRoastVisible = useRef(showRoast);
+
   const getRoundSummary = () => {
     const votesForAnswer: Record<string, Player[]> = {};
     answers.forEach(a => votesForAnswer[a.id] = []);
@@ -87,11 +97,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
   const isCurrentGM = localPlayerId === gameMasterId;
   const isAiGM = gameMasterId === 'AI_GM_HOST';
 
-  // WICHTIG: Host ODER aktueller menschlicher GM haben die Kontrolle über den Spielfluss.
-  // Wenn die KI oder ein Bot Spielleiter ist, darf der Host das Spiel weiterschalten.
   const canControlFlow = isCurrentGM || (isHost && (isAiGM || isBotGM));
-  
-  // WICHTIG: Nur der ECHTE aktuelle menschliche GM darf "unter die Karten" gucken.
   const canSeeHidden = isCurrentGM && !isBotGM && !isAiGM; 
 
   const handleReveal = (ans: Answer) => {
@@ -113,31 +119,33 @@ export const Resolution: React.FC<ResolutionProps> = ({
     }
   };
 
-  const botRoaster = roastData ? players.find(p => p.name === roastData.botName) : null;
-  const showRoast = roastData && botRoaster && revealedAnswerIds.includes(roastData.answerId);
-
   const showBigRevealButton = !allRevealed && canControlFlow;
 
   // --- AUTO SCROLL EFFECTS ---
   
   // 1. Scroll to newly revealed answer
   useEffect(() => {
-    const latestRevealedId = revealedAnswerIds[revealedAnswerIds.length - 1];
-    if (latestRevealedId && answerRefs.current[latestRevealedId]) {
-       // Timeout auf 300ms erhöht für bessere Mobile-Kompatibilität
-       setTimeout(() => {
-          answerRefs.current[latestRevealedId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-       }, 300);
+    if (revealedAnswerIds.length > prevRevealCount.current) {
+        const latestId = revealedAnswerIds[revealedAnswerIds.length - 1];
+        if (latestId && answerRefs.current[latestId]) {
+           setTimeout(() => {
+              answerRefs.current[latestId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+           }, 300);
+        }
     }
+    prevRevealCount.current = revealedAnswerIds.length;
   }, [revealedAnswerIds]);
 
   // 2. Scroll to roast if it appears
   useEffect(() => {
-      if (showRoast && roastRef.current) {
-          setTimeout(() => {
-             roastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 300);
+      if (showRoast && !wasRoastVisible.current) {
+          if (roastRef.current) {
+              setTimeout(() => {
+                 roastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 300);
+          }
       }
+      wasRoastVisible.current = showRoast;
   }, [showRoast]);
 
 
@@ -165,17 +173,17 @@ export const Resolution: React.FC<ResolutionProps> = ({
         <p className="text-xl md:text-2xl font-serif text-center leading-tight">{question}</p>
       </div>
 
-      {showRoast && (
+      {showRoast && botRoaster && (
           <div ref={roastRef} className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20">
             <div className="flex-shrink-0">
-                <Avatar avatar={botRoaster!.avatar} name={botRoaster!.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
+                <Avatar avatar={botRoaster.avatar} name={botRoaster.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
             <div className="relative bg-white text-brand-dark p-4 rounded-2xl rounded-tl-none shadow-2xl flex-1 border-2 border-pink-500">
                 <div className="absolute -top-3 -right-3 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest transform rotate-6 animate-pulse">
                   Troll-Alarm!
                 </div>
                 <p className="font-bold text-sm mb-1 text-pink-600 uppercase tracking-wide">
-                  {botRoaster!.name} roastet {roastData!.targetName}:
+                  {botRoaster.name} roastet {roastData!.targetName}:
                 </p>
                 <p className="text-lg font-serif italic leading-tight">
                   "{roastData!.text}"
