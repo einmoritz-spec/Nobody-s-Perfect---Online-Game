@@ -75,8 +75,8 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
         
         {/* LEADERBOARD BEREICH */}
         <div className="flex-1 w-full order-2 lg:order-1">
-          {/* Podium - Responsive Layout */}
-          <div className="grid grid-cols-2 md:flex md:flex-row md:items-end md:justify-center gap-4 md:gap-0 mb-16 md:h-96">
+          {/* Podium - Responsive Layout - Added mt-6 md:mt-16 to prevent crown overlap */}
+          <div className="grid grid-cols-2 md:flex md:flex-row md:items-end md:justify-center gap-4 md:gap-0 mb-16 md:h-96 mt-6 md:mt-16">
             
             {/* 2nd Place */}
             {second && (
