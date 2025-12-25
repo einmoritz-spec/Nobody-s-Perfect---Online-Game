@@ -4,8 +4,9 @@ import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles } from 'lucide-react';
+import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles, BookOpen, Scroll, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { HP_QUESTIONS } from '../questions';
 
 interface ResolutionProps {
   localPlayerId: string | null;
@@ -57,6 +58,9 @@ export const Resolution: React.FC<ResolutionProps> = ({
 }) => {
   const answerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const roastRef = useRef<HTMLDivElement | null>(null);
+  
+  // State für das Wegklicken des Popups
+  const [isFactDismissed, setIsFactDismissed] = useState(false);
 
   // Helper für Darstellung
   const botRoaster = roastData ? players.find(p => p.name === roastData.botName) : null;
@@ -65,6 +69,16 @@ export const Resolution: React.FC<ResolutionProps> = ({
   // Refs zum Tracking des Scroll-Status
   const scrolledAnswerIdsRef = useRef<Set<string>>(new Set());
   const hasScrolledToRoastRef = useRef(false);
+
+  // HP Facts Logic
+  const hpFact = isHarryPotterMode ? HP_QUESTIONS.find(i => i.q === question) : null;
+  const correctAnswerId = answers.find(a => a.isCorrect)?.id;
+  const showHpFact = !!(hpFact && correctAnswerId && revealedAnswerIds.includes(correctAnswerId) && hpFact.info);
+
+  // Reset dismissed state wenn sich die Frage ändert
+  useEffect(() => {
+      setIsFactDismissed(false);
+  }, [question]);
 
   const getRoundSummary = () => {
     const votesForAnswer: Record<string, Player[]> = {};
@@ -154,7 +168,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
 
 
   return (
-    <div className="max-w-6xl mx-auto animate-fade-in space-y-6 pb-48 px-2">
+    <div className="max-w-6xl mx-auto animate-fade-in space-y-6 pb-48 px-2 relative">
       <div className="text-center space-y-2 pt-4">
         <h2 className="text-3xl md:text-4xl font-serif text-brand-accent drop-shadow-lg uppercase tracking-wider">Auflösung</h2>
         {isCurrentGM ? (
@@ -193,6 +207,41 @@ export const Resolution: React.FC<ResolutionProps> = ({
                   "{roastData!.text}"
                 </p>
             </div>
+          </div>
+      )}
+
+      {/* HP Fun Fact Overlay */}
+      {showHpFact && hpFact && !isFactDismissed && (
+          <div className="fixed bottom-24 right-4 left-4 md:left-auto md:w-96 z-[60] animate-fade-in-up">
+              <div className="bg-[#f5e6ca] text-[#4a0404] p-4 rounded-lg shadow-2xl border-2 border-[#8b0000] relative">
+                  <div className="absolute -top-3 -left-3 bg-[#8b0000] text-[#f5e6ca] p-2 rounded-full border border-[#f5e6ca] shadow-md">
+                      <Sparkles size={20} className="animate-pulse" />
+                  </div>
+                  
+                  <button 
+                    onClick={() => setIsFactDismissed(true)}
+                    className="absolute top-2 right-2 p-1 hover:bg-[#8b0000]/10 rounded-full transition-colors text-[#4a0404]/60 hover:text-[#4a0404]"
+                    title="Schließen"
+                  >
+                      <X size={18} />
+                  </button>
+
+                  <h4 className="font-serif font-bold text-lg border-b border-[#8b0000]/20 pb-1 mb-2 flex items-center gap-2 pl-6 pr-6">
+                      Magisches Wissen
+                  </h4>
+                  {hpFact.book && (
+                      <div className="flex items-start gap-2 text-xs font-bold uppercase tracking-wider opacity-70 mb-2">
+                          <BookOpen size={12} className="mt-0.5" />
+                          <span>{hpFact.book}</span>
+                      </div>
+                  )}
+                  <p className="text-sm leading-relaxed font-serif">
+                      {hpFact.info}
+                  </p>
+                  <div className="absolute -bottom-2 -right-2 opacity-10 pointer-events-none text-[#8b0000]">
+                      <Scroll size={64} />
+                  </div>
+              </div>
           </div>
       )}
 

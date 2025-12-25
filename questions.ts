@@ -9,55 +9,300 @@ export const CATEGORIES = [
 ];
 
 export const HP_QUESTIONS = [
-    { q: "Was bewirkt der Zauberspruch 'Orchideous'?", a: "Er lässt Blumen aus der Zauberstabspitze sprießen" },
-    { q: "Was ist ein 'Glumbumble'?", a: "Ein graues, flauschiges Fluginsekt, das Melancholie verursacht" },
-    { q: "Wozu dient ein 'Geheimnis-Sensor'?", a: "Er vibriert, wenn Lügen oder Verheimlichungen in der Nähe sind" },
-    { q: "Was passiert beim Zauberspruch 'Waddiwasi'?", a: "Er schleudert kleine Objekte (z.B. Kaugummi) gezielt weg" },
-    { q: "Was ist die besondere Eigenschaft von 'Bubotubler-Eiter'?", a: "Er ist ein hervorragendes Mittel gegen hartnäckige Akne" },
-    { q: "Was bewirkt der Zauberspruch 'Densaugeo'?", a: "Er lässt die Zähne des Opfers extrem schnell wachsen" },
-    { q: "Was ist ein 'Moke'?", a: "Eine Eidechse, die nach Belieben schrumpfen kann" },
-    { q: "Wofür ist der 'Horklump' bekannt?", a: "Er ist ein fleischiger Pilz, der Regenwürmer frisst" },
-    { q: "Was bewirkt der Zauberspruch 'Tarantallegra'?", a: "Die Beine des Opfers tanzen unkontrolliert" },
-    { q: "Was ist ein 'Quintaped'?", a: "Ein gefährliches Tierwesen mit fünf behaarten Beinen" },
-    { q: "Was macht der Zauberspruch 'Glisseo'?", a: "Er verwandelt eine Treppe in eine Rutsche" },
-    { q: "Was ist ein 'Kniesel'?", a: "Ein katzenartiges Wesen, das verdächtige Personen aufspürt" },
-    { q: "Was bewirkt der Zauberspruch 'Langlock'?", a: "Er klebt die Zunge des Opfers am Gaumen fest" },
-    { q: "Was ist ein 'Plimpy'?", a: "Ein runder Fisch mit zwei langen Beinen" },
-    { q: "Wozu dient der Zauberspruch 'Avis'?", a: "Er lässt kleine Vögel aus dem Zauberstab erscheinen" },
-    { q: "Was ist ein 'Shrake'?", a: "Ein Fisch, der mit Stacheln bedeckt ist" },
-    { q: "Was bewirkt der Zauberspruch 'Oppugno'?", a: "Er lässt beschworene Gegenstände oder Tiere jemanden angreifen" },
-    { q: "Was ist ein 'Fwooper'?", a: "Ein Vogel, dessen Gesang Menschen in den Wahnsinn treibt" },
-    { q: "Was macht der Zauberspruch 'Anapneo'?", a: "Er befreit die Atemwege, wenn sich jemand verschluckt hat" },
-    { q: "Was ist ein 'Billywig'?", a: "Ein Insekt, dessen Stich Schwebezustände verursacht" },
-    { q: "Was bewirkt der Zauberspruch 'Defodio'?", a: "Er gräbt oder meißelt Löcher in Stein und Erde" },
-    { q: "Was ist ein 'Murtlap'?", a: "Ein rattenartiges Wesen mit einem Gewächs auf dem Rücken" },
-    { q: "Was passiert beim Zauberspruch 'Episkey'?", a: "Er heilt kleinere Verletzungen wie gebrochene Nasen" },
-    { q: "Was ist ein 'Nundu'?", a: "Ein riesiger Leopard, dessen Atem tödliche Seuchen bringt" },
-    { q: "Was bewirkt der Zauberspruch 'Erecto'?", a: "Er baut Zeltstrukturen oder ähnliches automatisch auf" },
-    { q: "Was ist ein 'Pogrebin'?", a: "Ein russischer Gnom, der Menschen verfolgt und Verzweiflung bringt" },
-    { q: "Was macht der Zauberspruch 'Ferula'?", a: "Er bandagiert und schient gebrochene Gliedmaßen" },
-    { q: "Was ist ein 'Ramora'?", a: "Ein Fisch, der Schiffe ankern kann" },
-    { q: "Was bewirkt der Zauberspruch 'Incarcerous'?", a: "Er fesselt das Opfer mit dicken Seilen" },
-    { q: "Was ist ein 'Streeler'?", a: "Eine Riesenschnecke, die eine ätzende Schleimspur hinterlässt" },
-    { q: "Was macht der Zauberspruch 'Obscuro'?", a: "Er verbindet dem Opfer die Augen mit einer Binde" },
-    { q: "Was ist ein 'Tebo'?", a: "Ein Warzenschwein, das sich unsichtbar machen kann" },
-    { q: "Was bewirkt der Zauberspruch 'Piertotum Locomotor'?", a: "Er erweckt Statuen und Rüstungen zum Leben" },
-    { q: "Was ist ein 'Jobberknoll'?", a: "Ein Vogel, der erst beim Sterben alle gehörten Geräusche rückwärts abspielt" },
-    { q: "Was macht der Zauberspruch 'Rictusempra'?", a: "Er verursacht unkontrollierbaren Kitzelreiz" },
-    { q: "Was ist ein 'Lobalug'?", a: "Ein Meereswesen, das Angreifer mit Gift bespritzt" },
-    { q: "Was bewirkt der Zauberspruch 'Serpensortia'?", a: "Er lässt eine Schlange aus dem Zauberstab erscheinen" },
-    { q: "Was ist ein 'Mondkalb'?", a: "Ein scheues Wesen, das bei Vollmond komplexe Tänze aufführt" },
-    { q: "Was macht der Zauberspruch 'Tergeo'?", a: "Er saugt Flüssigkeiten oder Staub weg" },
-    { q: "Was ist ein 'Clabbert'?", a: "Ein baumbewohnendes Wesen, dessen Pustel bei Gefahr rot leuchtet" },
-    { q: "Was bewirkt der Zauberspruch 'Melofors'?", a: "Er steckt den Kopf des Opfers in einen Kürbis" },
-    { q: "Was ist ein 'Bundimun'?", a: "Ein pilzartiges Wesen, das Häuser verrotten lässt" },
-    { q: "Was macht der Zauberspruch 'Mobiliarbus'?", a: "Er bewegt Bäume oder hölzerne Objekte" },
-    { q: "Was bewirkt der Zauberspruch 'Duro'?", a: "Er verwandelt Objekte in festen Stein" },
-    { q: "Was ist ein 'Nogschwanz'?", a: "Ein Dämon in Ferkelgestalt, der schwer zu fangen ist" },
-    { q: "Was macht der Zauberspruch 'Specialis Revelio'?", a: "Er enthüllt verborgene magische Eigenschaften eines Objekts" },
-    { q: "Was ist ein 'Porlock'?", a: "Ein pferdeartiger Hüter von Pferdeherden" },
-    { q: "Was bewirkt der Zauberspruch 'Quietus'?", a: "Er macht eine magisch verstärkte Stimme wieder normal leise" },
-    { q: "Was ist ein 'Re‘em'?", a: "Ein goldener Ochse, dessen Blut enorme Stärke verleiht" }
+    { 
+        q: "Was bewirkt der Zauberspruch 'Orchideous'?", 
+        a: "Er lässt Blumen aus der Zauberstabspitze sprießen",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Mr. Ollivander nutzt diesen Spruch bei der Eichung der Zauberstäbe vor dem Trimagischen Turnier, um Fleur Delacours Stab zu testen."
+    },
+    { 
+        q: "Was ist ein 'Glumbumble'?", 
+        a: "Ein graues, flauschiges Fluginsekt, das Melancholie verursacht",
+        book: "Phantastische Tierwesen und wo sie zu finden sind",
+        info: "Der Honig (Melasse) dieser Insekten ruft Schwermut hervor und wird als Gegenmittel gegen die Hysterie nach dem Verzehr von Alihotsy-Blättern genutzt."
+    },
+    { 
+        q: "Wozu dient ein 'Geheimnis-Sensor'?", 
+        a: "Er vibriert, wenn Lügen oder Verheimlichungen in der Nähe sind",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Filch benutzt ihn oft, um Schüler zu kontrollieren. Im 4. Band steht einer in Moody's Büro, der aber wegen der vielen Lügen der Schüler ständig summt."
+    },
+    { 
+        q: "Was passiert beim Zauberspruch 'Waddiwasi'?", 
+        a: "Er schleudert kleine Objekte (z.B. Kaugummi) gezielt weg",
+        book: "Harry Potter und der Gefangene von Askaban",
+        info: "Remus Lupin wendet diesen Spruch an, um einen Kaugummi, den Peeves ins Schlüsselloch gesteckt hat, diesem direkt in die Nase zu schießen."
+    },
+    { 
+        q: "Was ist die besondere Eigenschaft von 'Bubotubler-Eiter'?", 
+        a: "Er ist ein hervorragendes Mittel gegen hartnäckige Akne",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Im Kräuterkunde-Unterricht müssen die Schüler den Eiter aus den Pflanzen quetschen. Später nutzt Hermine ihn (verdünnt), um sich für den Ball hübsch zu machen."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Densaugeo'?", 
+        a: "Er lässt die Zähne des Opfers extrem schnell wachsen",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Draco Malfoy trifft Hermine damit ungewollt bei einem Duell auf dem Gang. Ihre Vorderzähne wachsen daraufhin bis zum Kragen."
+    },
+    { 
+        q: "Was ist ein 'Moke'?", 
+        a: "Eine Eidechse, die nach Belieben schrumpfen kann",
+        book: "Phantastische Tierwesen und wo sie zu finden sind",
+        info: "Aufgrund ihrer Fähigkeit zu schrumpfen, werden Moke-Häute oft für Geldbeutel verwendet, die sich bei Annäherung von Dieben zusammenziehen."
+    },
+    { 
+        q: "Wofür ist der 'Horklump' bekannt?", 
+        a: "Er ist ein fleischiger Pilz, der Regenwürmer frisst",
+        book: "Phantastische Tierwesen / Videospiele",
+        info: "Horklumpe sind rosa, stachlig und gelten als Gartenschädlinge. Gnome essen sie gerne."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Tarantallegra'?", 
+        a: "Die Beine des Opfers tanzen unkontrolliert",
+        book: "Harry Potter und die Kammer des Schreckens",
+        info: "Draco Malfoy wendet diesen Fluch im Duellierclub gegen Harry an, woraufhin Harrys Beine einen wilden Stepptanz aufführen."
+    },
+    { 
+        q: "Was ist ein 'Quintaped'?", 
+        a: "Ein gefährliches Tierwesen mit fünf behaarten Beinen",
+        book: "Phantastische Tierwesen und wo sie zu finden sind",
+        info: "Legenden besagen, dass die Quintapeds eigentlich verwandeltet Mitglieder des MacBoon-Clans von der Insel Drear sind."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Glisseo'?", 
+        a: "Er verwandelt eine Treppe in eine Rutsche",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Hermine nutzt diesen Spruch während der Schlacht von Hogwarts, um Verfolger auf einer Treppe abzuschütteln."
+    },
+    { 
+        q: "Was ist ein 'Kniesel'?", 
+        a: "Ein katzenartiges Wesen, das verdächtige Personen aufspürt",
+        book: "Harry Potter und der Gefangene von Askaban",
+        info: "Hermines Kater Krummbein ist ein halber Kniesel, weshalb er sofort spürt, dass mit Krätze (Peter Pettigrew) etwas nicht stimmt."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Langlock'?", 
+        a: "Er klebt die Zunge des Opfers am Gaumen fest",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Ein Zauber von Severus Snape (Halbblutprinz). Harry wendet ihn gegen Peeves und später gegen Argus Filch an."
+    },
+    { 
+        q: "Was ist ein 'Plimpy'?", 
+        a: "Ein runder Fisch mit zwei langen Beinen",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Luna Lovegood erwähnt oft Plimpys. Um sie abzuwehren, soll man Gulping Plimpy Suppe essen oder sie verknoten."
+    },
+    { 
+        q: "Wozu dient der Zauberspruch 'Avis'?", 
+        a: "Er lässt kleine Vögel aus dem Zauberstab erscheinen",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Mr. Ollivander prüft damit Viktor Krums Zauberstab. Hermine nutzt ihn später im 6. Teil, um Vögel auf Ron zu hetzen."
+    },
+    { 
+        q: "Was ist ein 'Shrake'?", 
+        a: "Ein Fisch, der mit Stacheln bedeckt ist",
+        book: "Phantastische Tierwesen",
+        info: "Man glaubt, er wurde von Zauberern erschaffen, um Muggel-Fischernetze zu zerstören, die in einem bestimmten Gebiet fischten."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Oppugno'?", 
+        a: "Er lässt beschworene Gegenstände oder Tiere jemanden angreifen",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Hermine nutzt diesen Spruch in Kombination mit 'Avis', um einen Schwarm kleiner Vögel auf Ron Weasley zu hetzen."
+    },
+    { 
+        q: "Was ist ein 'Fwooper'?", 
+        a: "Ein Vogel, dessen Gesang Menschen in den Wahnsinn treibt",
+        book: "Phantastische Tierwesen",
+        info: "Deshalb werden Fwooper immer mit einem Schweigezauber verkauft. Ihre Federn sind sehr beliebt für Schreibfedern."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Anapneo'?", 
+        a: "Er befreit die Atemwege, wenn sich jemand verschluckt hat",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Professor Slughorn wendet diesen Zauber bei Marcus Belby an, als dieser sich beim Essen im 'Slug-Club' verschluckt."
+    },
+    { 
+        q: "Was ist ein 'Billywig'?", 
+        a: "Ein Insekt, dessen Stich Schwebezustände verursacht",
+        book: "Phantastische Tierwesen",
+        info: "Junge australische Zauberer versuchen oft, sich stechen zu lassen, um die Nebenwirkung des Schwebens zu genießen. Bestandteil von 'Zischenden Wissbies'."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Defodio'?", 
+        a: "Er gräbt oder meißelt Löcher in Stein und Erde",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Harry, Ron und Hermine nutzen ihn, um aus den Tunneln von Gringotts zu entkommen, indem sie den Tunnel vergrößern."
+    },
+    { 
+        q: "Was ist ein 'Murtlap'?", 
+        a: "Ein rattenartiges Wesen mit einem Gewächs auf dem Rücken",
+        book: "Harry Potter und der Orden des Phönix",
+        info: "Hermine legt Harrys Hand in Murtlap-Essenz ein, nachdem Umbridge ihn gezwungen hat, 'Ich soll keine Lügen erzählen' in seine Hand zu ritzen."
+    },
+    { 
+        q: "Was passiert beim Zauberspruch 'Episkey'?", 
+        a: "Er heilt kleinere Verletzungen wie gebrochene Nasen",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Tonks (im Buch) bzw. Luna (im Film) heilt damit Harrys Nase, nachdem Draco Malfoy ihm im Hogwarts-Express ins Gesicht getreten hat."
+    },
+    { 
+        q: "Was ist ein 'Nundu'?", 
+        a: "Ein riesiger Leopard, dessen Atem tödliche Seuchen bringt",
+        book: "Phantastische Tierwesen",
+        info: "Er gilt als eines der gefährlichsten Tierwesen überhaupt. Um ihn zu bändigen, sind oft über 100 Zauberer nötig."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Erecto'?", 
+        a: "Er baut Zeltstrukturen oder ähnliches automatisch auf",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Hermine und Harry benutzen diesen Spruch auf ihrer Flucht oft, um ihr Zelt schnell aufzubauen."
+    },
+    { 
+        q: "Was ist ein 'Pogrebin'?", 
+        a: "Ein russischer Gnom, der Menschen verfolgt und Verzweiflung bringt",
+        book: "Phantastische Tierwesen",
+        info: "Er sieht aus wie ein grauer Stein. Er folgt Menschen, bis diese vor Verzweiflung zusammenbrechen, und versucht sie dann zu fressen."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Ferula'?", 
+        a: "Er bandagiert und schient gebrochene Gliedmaßen",
+        book: "Harry Potter und der Gefangene von Askaban",
+        info: "Lupin wendet diesen Zauber bei Ron an, um dessen gebrochenes Bein in der Heulenden Hütte zu schienen."
+    },
+    { 
+        q: "Was ist ein 'Ramora'?", 
+        a: "Ein Fisch, der Schiffe ankern kann",
+        book: "Phantastische Tierwesen",
+        info: "Der Ramora ist ein silberner Fisch, der Schiffe in Gewässern festhalten kann. Er steht unter dem Schutz der Internationalen Zauberervereinigung."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Incarcerous'?", 
+        a: "Er fesselt das Opfer mit dicken Seilen",
+        book: "Harry Potter und der Orden des Phönix",
+        info: "Umbridge setzt diesen Zauber gegen die Zentauren im Verbotenen Wald ein, was diese extrem wütend macht."
+    },
+    { 
+        q: "Was ist ein 'Streeler'?", 
+        a: "Eine Riesenschnecke, die eine ätzende Schleimspur hinterlässt",
+        book: "Harry Potter und die Kammer des Schreckens (Spiel/Buch)",
+        info: "Ihr Schleim ist so giftig, dass er Pflanzen vernichtet. Sie wird oft als Haustier gehalten, muss aber ständig das Terrarium wechseln."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Obscuro'?", 
+        a: "Er verbindet dem Opfer die Augen mit einer Binde",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Hermine wendet ihn auf das Porträt von Phineas Nigellus Black an, damit er ihren Aufenthaltsort nicht ausspionieren kann."
+    },
+    { 
+        q: "Was ist ein 'Tebo'?", 
+        a: "Ein Warzenschwein, das sich unsichtbar machen kann",
+        book: "Phantastische Tierwesen",
+        info: "Seine Haut wird oft für Schutzschilde und Kleidung verwendet, da sie sehr widerstandsfähig ist."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Piertotum Locomotor'?", 
+        a: "Er erweckt Statuen und Rüstungen zum Leben",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Professor McGonagall nutzt diesen Zauber, um die Statuen von Hogwarts zur Verteidigung der Schule in den Kampf zu schicken."
+    },
+    { 
+        q: "Was ist ein 'Jobberknoll'?", 
+        a: "Ein Vogel, der erst beim Sterben alle gehörten Geräusche rückwärts abspielt",
+        book: "Phantastische Tierwesen",
+        info: "Seine Federn werden für Wahrheitselixiere und Gedächtnistränke verwendet."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Rictusempra'?", 
+        a: "Er verursacht unkontrollierbaren Kitzelreiz",
+        book: "Harry Potter und die Kammer des Schreckens",
+        info: "Harry nutzt ihn im Duellierclub gegen Draco Malfoy. Im Film schleudert er Draco nur weg, im Buch bekommt er einen Lachanfall."
+    },
+    { 
+        q: "Was ist ein 'Lobalug'?", 
+        a: "Ein Meereswesen, das Angreifer mit Gift bespritzt",
+        book: "Phantastische Tierwesen",
+        info: "Wird vom Meeresvolk als Waffe genutzt. Sein Giftbeutel wird für Zaubertränke verwendet."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Serpensortia'?", 
+        a: "Er lässt eine Schlange aus dem Zauberstab erscheinen",
+        book: "Harry Potter und die Kammer des Schreckens",
+        info: "Draco Malfoy nutzt diesen Spruch im Duell gegen Harry, was dazu führt, dass Harry seine Parsel-Fähigkeiten offenbart."
+    },
+    { 
+        q: "Was ist ein 'Mondkalb'?", 
+        a: "Ein scheues Wesen, das bei Vollmond komplexe Tänze aufführt",
+        book: "Phantastische Tierwesen",
+        info: "Die geometrischen Muster, die sie in Kornfelder tanzen, verwirren Muggel oft (Kornkreise)."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Tergeo'?", 
+        a: "Er saugt Flüssigkeiten oder Staub weg",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Hermine säubert damit Harrys Gesicht von Blut, nachdem Draco ihm im Zug die Nase gebrochen hat."
+    },
+    { 
+        q: "Was ist ein 'Clabbert'?", 
+        a: "Ein baumbewohnendes Wesen, dessen Pustel bei Gefahr rot leuchtet",
+        book: "Phantastische Tierwesen",
+        info: "Amerikanische Zauberer hielten sie früher in Gärten, um vor Muggeln gewarnt zu werden."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Melofors'?", 
+        a: "Er steckt den Kopf des Opfers in einen Kürbis",
+        book: "Harry Potter Videospiele / Prisoner of Azkaban",
+        info: "Ein eher humorvoller Fluch, der den Kopf des Gegners komplett in einen Kürbis hüllt."
+    },
+    { 
+        q: "Was ist ein 'Bundimun'?", 
+        a: "Ein pilzartiges Wesen, das Häuser verrotten lässt",
+        book: "Phantastische Tierwesen",
+        info: "Man erkennt sie am fauligen Gestank. Ihr Sekret wird (verdünnt) in einigen magischen Reinigungsmitteln verwendet."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Mobiliarbus'?", 
+        a: "Er bewegt Bäume oder hölzerne Objekte",
+        book: "Harry Potter und der Gefangene von Askaban",
+        info: "Hermine verschiebt damit einen Weihnachtsbaum im 'Drei Besen', um Harry vor den Lehrern zu verstecken."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Duro'?", 
+        a: "Er verwandelt Objekte in festen Stein",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Hermine nutzt ihn, um einen Wandteppich in Stein zu verwandeln, damit zwei Todesser dagegen prallen."
+    },
+    { 
+        q: "Was ist ein 'Nogschwanz'?", 
+        a: "Ein Dämon in Ferkelgestalt, der schwer zu fangen ist",
+        book: "Phantastische Tierwesen",
+        info: "Sie schleichen sich in Schweineställe und säugen an normalen Säuen. Ein reinweißer Hund ist nötig, um sie zu vertreiben."
+    },
+    { 
+        q: "Was macht der Zauberspruch 'Specialis Revelio'?", 
+        a: "Er enthüllt verborgene magische Eigenschaften eines Objekts",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Hermine wendet ihn auf das Buch des Halbblutprinzen an, um zu prüfen, ob es verflucht ist."
+    },
+    { 
+        q: "Was ist ein 'Porlock'?", 
+        a: "Ein pferdeartiger Hüter von Pferdeherden",
+        book: "Phantastische Tierwesen",
+        info: "Sie sind scheu, haben eine große Nase und gehen auf zwei Hufen. Sie bewachen Pferde vor Gefahren."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Quietus'?", 
+        a: "Er macht eine magisch verstärkte Stimme wieder normal leise",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Ludo Bagman nutzt diesen Spruch nach dem Quidditch-WM-Finale, um seine Stimme nach dem Kommentar wieder zu senken."
+    },
+    { 
+        q: "Was ist ein 'Re‘em'?", 
+        a: "Ein goldener Ochse, dessen Blut enorme Stärke verleiht",
+        book: "Phantastische Tierwesen",
+        info: "Das Blut ist extrem selten und auf dem Schwarzmarkt sehr teuer. Wer es trinkt, wird für kurze Zeit immens stark."
+    }
 ];
 
 export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
