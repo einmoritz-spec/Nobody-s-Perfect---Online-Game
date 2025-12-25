@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
@@ -153,7 +154,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
 
 
   return (
-    <div className="max-w-3xl mx-auto animate-fade-in space-y-6 pb-48 px-2">
+    <div className="max-w-6xl mx-auto animate-fade-in space-y-6 pb-48 px-2">
       <div className="text-center space-y-2 pt-4">
         <h2 className="text-3xl md:text-4xl font-serif text-brand-accent drop-shadow-lg uppercase tracking-wider">Auflösung</h2>
         {isCurrentGM ? (
@@ -171,13 +172,13 @@ export const Resolution: React.FC<ResolutionProps> = ({
         )}
       </div>
 
-      <div className="bg-gradient-to-br from-brand-primary to-purple-950 rounded-2xl p-5 border border-brand-accent/20 shadow-xl">
+      <div className="bg-gradient-to-br from-brand-primary to-purple-950 rounded-2xl p-5 border border-brand-accent/20 shadow-xl max-w-4xl mx-auto">
         <p className="text-[10px] text-brand-accent uppercase tracking-widest mb-1 text-center font-bold opacity-70">Die Frage</p>
         <p className="text-xl md:text-2xl font-serif text-center leading-tight">{question}</p>
       </div>
 
       {showRoast && botRoaster && (
-          <div ref={roastRef} className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20">
+          <div ref={roastRef} className="my-4 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-3xl mx-auto">
             <div className="flex-shrink-0">
                 <Avatar avatar={botRoaster.avatar} name={botRoaster.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
@@ -195,7 +196,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
           </div>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {answers.map((ans) => {
           const voters = votesForAnswer[ans.id] || [];
           const author = players.find(p => p.id === ans.authorId);
@@ -207,7 +208,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
               key={ans.id} 
               ref={el => { answerRefs.current[ans.id] = el }}
               className={`
-                relative overflow-hidden rounded-xl border-2 transition-all duration-300 scroll-mt-24
+                relative overflow-hidden rounded-xl border-2 transition-all duration-300 scroll-mt-24 flex flex-col
                 ${isRevealedToPublic 
                   ? (ans.isCorrect ? 'bg-green-900/40 border-green-500/60' : 'bg-white/10 border-white/20 shadow-lg') 
                   : 'bg-white/5 border-white/5'}
@@ -222,7 +223,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
                 </div>
               )}
 
-              <div className={`p-4 transition-opacity duration-500 ${(isRevealedToPublic || canSeeHidden) ? 'opacity-100' : 'opacity-0'}`}>
+              <div className={`p-4 transition-opacity duration-500 h-full flex flex-col ${(isRevealedToPublic || canSeeHidden) ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   {ans.isCorrect ? (
                     <span className="bg-green-500 text-green-950 text-[10px] font-black px-2 py-0.5 rounded shadow-sm">DIE WAHRHEIT</span>
@@ -240,7 +241,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
                   )}
                 </div>
 
-                <p className={`text-lg md:text-xl font-medium leading-relaxed ${isRevealedToPublic ? 'text-white' : 'text-white/60'}`}>
+                <p className={`text-lg font-medium leading-relaxed mb-auto ${isRevealedToPublic ? 'text-white' : 'text-white/60'}`}>
                   {ans.text}
                 </p>
 

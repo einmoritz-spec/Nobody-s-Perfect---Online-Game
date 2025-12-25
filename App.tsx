@@ -11,7 +11,7 @@ import { Avatar } from './components/ui/Avatar';
 import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
-import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal } from 'lucide-react';
+import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal, Trophy } from 'lucide-react';
 import { CATEGORIES, QUESTIONS, HP_QUESTIONS } from './questions';
 
 // --- HELPER ---
@@ -321,12 +321,14 @@ const App: React.FC = () => {
 
     peer.on('error', (err) => {
         console.error('Client Peer Error:', err);
-        // Nur kritische Fehler anzeigen, transiente Fehler ignorieren für bessere UX
+        // Wenn der Peer (Host) nicht verfügbar ist (z.B. Raum geschlossen), Session löschen
         if (err.type === 'peer-unavailable') {
-            setConnectionStatus('error');
+            localStorage.removeItem(SESSION_KEY);
+            localStorage.removeItem(STATE_RECOVERY_KEY);
+            alert("Raum nicht gefunden oder geschlossen. Du wirst zum Hauptmenü geleitet.");
+            window.location.reload();
         } else if (err.type !== 'network' && err.type !== 'server-error' && err.type !== 'socket-error' && err.type !== 'socket-closed') {
-             // Zeige Fehler nur wenn es kein Netzwerk/Disconnect Fehler ist (die werden vom Reconnect handled)
-             // setConnectionStatus('error');
+             setConnectionStatus('error');
         }
     });
   };
@@ -359,8 +361,13 @@ const App: React.FC = () => {
   const processGameReducer = (state: GameState, action: NetworkAction): GameState => {
     switch (action.type) {
       case 'JOIN': {
-        if (state.players.some(p => p.id === action.payload.id)) return state;
-        return { ...state, players: [...state.players, action.payload] };
+        const exists = state.players.some(p => p.id === action.payload.id);
+        // WICHTIG: Wenn der Spieler schon existiert (Reconnect), aktualisieren wir 'lastUpdated'
+        // Das zwingt 'handleHostAction', den State zu broadcasten, damit der Client die Daten erhält.
+        if (exists) {
+            return { ...state, lastUpdated: Date.now() };
+        }
+        return { ...state, players: [...state.players, action.payload], lastUpdated: Date.now() };
       }
       case 'REMOVE_PLAYER': {
         const pid = action.payload.playerId;
@@ -899,6 +906,26 @@ const App: React.FC = () => {
   const gm = gameState.players.find(p => p.id === gameState.gameMasterId);
   const isAiGm = gameState.gameMasterId === AI_GM_ID;
 
+  // Wenn wir verbinden oder noch auf den State warten (und nicht Host sind), zeigen wir einen Ladebildschirm
+  if (!isHost && (connectionStatus === 'connecting' || (connectionStatus === 'connected' && !hasJoinedSuccessfully))) {
+      return (
+          <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-4">
+              <div className="text-center space-y-4 animate-fade-in">
+                  <div className="relative inline-block">
+                      <div className="absolute inset-0 bg-brand-accent blur-xl opacity-20 rounded-full animate-pulse-slow"></div>
+                      <Loader2 size={64} className="text-brand-accent animate-spin relative z-10" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white font-serif">Verbindung wird hergestellt...</h2>
+                  <p className="text-purple-300">Synchronisiere Spielstand</p>
+                  
+                  {connectionStatus === 'connected' && (
+                      <p className="text-xs text-white/30 pt-4 animate-pulse">Warte auf Host-Antwort...</p>
+                  )}
+              </div>
+          </div>
+      );
+  }
+
   // TIMER CONTROLS
   const renderTimerControls = () => {
      // Zeige Controls nur in der PLAYER_INPUT Phase, wenn noch kein Timer läuft
@@ -928,7 +955,7 @@ const App: React.FC = () => {
                         <Button 
                            key={sec}
                            onClick={() => dispatch({ type: 'START_TIMER', payload: { duration: sec } })}
-                           className="flex-1 sm:flex-none py-1.5 text-xs h-9 min-w-[40px]"
+                           className="flex-1 sm:flex-none py-1.5 text-xs h-9 min-w-[40px] !px-0 w-12"
                            variant="secondary"
                         >
                            {sec}
@@ -1022,8 +1049,75 @@ const App: React.FC = () => {
       );
   };
 
+  const renderLeaderboard = (isMobile: boolean) => {
+    // Zeige Sidebar nur auf großen Screens und wenn das Spiel läuft (oder in der Lobby, wenn man will)
+    if (gameState.phase === GamePhase.LOBBY) return null;
+
+    const sortedPlayers = [...gameState.players].filter(p => !p.isHeckler).sort((a,b) => b.score - a.score);
+
+    const containerClasses = isMobile 
+        ? "lg:hidden mt-8 mb-24 w-full animate-fade-in-up" 
+        : "hidden lg:block w-80 flex-shrink-0 animate-fade-in-right sticky top-6 h-[calc(100vh-3rem)] overflow-hidden";
+
+    return (
+      <div className={containerClasses}>
+         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 h-full flex flex-col shadow-xl">
+             <h3 className="text-xs font-bold uppercase tracking-widest text-brand-accent mb-4 flex items-center gap-2">
+                <Trophy size={14} /> {isMobile ? "Spieler & Scoreboard" : "Live Scoreboard"}
+             </h3>
+             
+             <div className={`space-y-2 flex-1 custom-scrollbar pr-2 ${!isMobile ? 'overflow-y-auto' : ''}`}>
+                 {sortedPlayers.map((p, i) => (
+                     <div key={p.id} className={`flex items-center justify-between p-2 rounded-lg border ${p.id === localPlayerId ? 'bg-brand-accent/10 border-brand-accent' : 'bg-transparent border-white/5'}`}>
+                         <div className="flex items-center gap-3">
+                             <div className={`w-5 text-center text-xs font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}`}>{i+1}.</div>
+                             <Avatar avatar={p.avatar} size="xs" />
+                             <div className="flex flex-col">
+                                 <span className={`text-sm font-bold truncate max-w-[100px] ${p.id === localPlayerId ? 'text-brand-accent' : 'text-white'}`}>{p.name}</span>
+                                 {p.id === gameState.gameMasterId && (
+                                     <span className="text-[9px] bg-purple-500/30 text-purple-300 px-1 rounded flex items-center gap-1 w-fit"><Crown size={8}/> GM</span>
+                                 )}
+                             </div>
+                         </div>
+                         <div className="flex items-center gap-2">
+                             <span className="font-mono font-bold text-lg">{p.score}</span>
+                             {isHost && p.id !== localPlayerId && (
+                                <button 
+                                  onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if(window.confirm(`${p.name} wirklich aus dem Spiel entfernen?`)) {
+                                          dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } });
+                                      }
+                                  }}
+                                  className="relative z-20 p-2 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
+                                  title="Spieler kicken"
+                                >
+                                   <UserX size={16} />
+                                </button>
+                             )}
+                         </div>
+                     </div>
+                 ))}
+             </div>
+
+             {/* Admin Controls in Sidebar for quick access */}
+             {isHost && (
+                 <div className="mt-4 pt-4 border-t border-white/10">
+                     <p className="text-[10px] uppercase font-bold text-gray-500 mb-2">Host Controls</p>
+                     <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => dispatch({ type: 'NEXT_ROUND' })} className="bg-white/5 hover:bg-white/10 p-2 rounded text-xs text-white border border-white/10">Skip Round</button>
+                        <button onClick={() => dispatch({ type: 'TOGGLE_RULES', payload: {show: true} })} className="bg-white/5 hover:bg-white/10 p-2 rounded text-xs text-white border border-white/10">Regeln</button>
+                     </div>
+                 </div>
+             )}
+         </div>
+      </div>
+    );
+  };
+
   return (
-    <div className={`min-h-screen p-4 md:p-8 font-sans pb-40 relative overflow-x-hidden ${gameState.isHarryPotterMode ? 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-900 to-slate-950 text-amber-50' : 'bg-brand-dark text-brand-light'}`}>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 font-sans pb-20 relative overflow-x-hidden bg-brand-dark text-brand-light">
       {renderRulesModal()}
 
       {localPlayerId && (
@@ -1033,67 +1127,65 @@ const App: React.FC = () => {
       )}
       {isHost && <div className="fixed top-2 left-2 md:top-6 md:left-6 text-[10px] md:text-xs text-white/30 font-mono tracking-widest uppercase z-50 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full border border-white/5 shadow-sm">RAUM: {roomCode}</div>}
 
-      <div className="max-w-4xl mx-auto">
-        {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleHPMode={(e) => dispatch({ type: 'TOGGLE_HP_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
+      {/* Main Container - nutzt auf Desktop mehr Breite und Grid Layout */}
+      <div className={`max-w-[1800px] mx-auto ${gameState.phase !== GamePhase.LOBBY ? 'lg:flex lg:gap-8 lg:items-start' : ''}`}>
+        
+        {/* Main Content Area */}
+        <div className="flex-1 w-full min-w-0">
+            {gameState.phase === GamePhase.LOBBY && <Lobby players={gameState.players} localPlayerId={localPlayerId} onJoin={joinGame} onCreate={createGame} onStartGame={(m) => dispatch({ type: 'START_GAME', payload: { mode: m } })} onRemovePlayer={(pid) => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: pid } })} onUpdatePlayer={(u) => dispatch({ type: 'UPDATE_PLAYER', payload: { playerId: localPlayerId!, ...u } })} onAddBot={(p) => addBot(p)} onToggleTrollMode={(e) => dispatch({ type: 'TOGGLE_TROLL_MODE', payload: { enable: e } })} onToggleHPMode={(e) => dispatch({ type: 'TOGGLE_HP_MODE', payload: { enable: e } })} onToggleRules={(show) => dispatch({ type: 'TOGGLE_RULES', payload: { show } })} isHost={isHost} roomCode={roomCode} connectionStatus={connectionStatus} />}
 
-        {localPlayerId && gameState.phase !== GamePhase.LOBBY && (
-          <div className="animate-fade-in">
-             {gameState.phase === GamePhase.GM_INPUT && (
-              (localPlayerId === gameState.gameMasterId && !isAiGm) ? (
-                <div className="space-y-4">
-                  <div className="flex justify-end"><Button variant="secondary" className="text-xs" onClick={async () => { const d = await generateAiContent("random"); dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } }); }} disabled={isAiLoading}>{isAiLoading ? <Loader2 className="animate-spin mr-2" /> : <Wand2 size={14} className="mr-2" />}KI-Vorschlag</Button></div>
-                  <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} isHarryPotterMode={gameState.isHarryPotterMode} />
-                </div>
-              ) : (
-                <div className="text-center pt-20"><Avatar avatar={isAiGm ? "https://robohash.org/AI?set=set4" : (gm?.avatar || "")} size="3xl" className="mx-auto mb-6 border-8 border-brand-dark" /><h2 className="text-3xl font-bold">{isAiGm ? "KI-Monster" : gm?.name} wählt eine Frage...</h2></div>
-              )
+            {localPlayerId && gameState.phase !== GamePhase.LOBBY && (
+            <div className="animate-fade-in w-full">
+                {gameState.phase === GamePhase.GM_INPUT && (
+                (localPlayerId === gameState.gameMasterId && !isAiGm) ? (
+                    <div className="space-y-4 max-w-5xl mx-auto">
+                    <div className="flex justify-end"><Button variant="secondary" className="text-xs" onClick={async () => { const d = await generateAiContent("random"); dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } }); }} disabled={isAiLoading}>{isAiLoading ? <Loader2 className="animate-spin mr-2" /> : <Wand2 size={14} className="mr-2" />}KI-Vorschlag</Button></div>
+                    <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} isHarryPotterMode={gameState.isHarryPotterMode} />
+                    </div>
+                ) : (
+                    <div className="text-center pt-20"><Avatar avatar={isAiGm ? "https://robohash.org/AI?set=set4" : (gm?.avatar || "")} size="3xl" className="mx-auto mb-6 border-8 border-brand-dark" /><h2 className="text-3xl font-bold">{isAiGm ? "KI-Monster" : gm?.name} wählt eine Frage...</h2></div>
+                )
+                )}
+                
+                {gameState.phase === GamePhase.PLAYER_INPUT && (
+                localPlayerId === gameState.gameMasterId ? (
+                    <div className="text-center pt-10">
+                    <Avatar avatar={gm?.avatar || ""} size="3xl" className="mx-auto mb-8 border-8 border-brand-dark" />
+                    <h2 className="text-3xl font-bold mb-8">Spieler überlegen...</h2>
+                    <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {gameState.players.filter(p => !p.isHeckler && p.id !== gameState.gameMasterId).map(p => {
+                            const sub = gameState.submittedAnswers.some(a => a.authorId === p.id);
+                            return (
+                            <div key={p.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${sub ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50'}`}>
+                                <Avatar avatar={p.avatar} size="sm" /><div className="flex-1 text-left"><p className="font-bold truncate">{p.name}</p></div>{sub && <CheckCircle2 size={20} className="text-green-500" />}
+                            </div>
+                            );
+                        })}
+                    </div>
+                    <p className="text-purple-300 mt-10 flex items-center justify-center gap-2"><Eye className="animate-pulse" /> Du bist der Spielleiter.</p>
+                    </div>
+                ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} timerEndTime={gameState.timerEndTime} timerTotal={gameState.timerDuration} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
+                )}
+
+                {renderTimerControls()}
+
+                {gameState.phase === GamePhase.VOTING && (
+                (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} votes={gameState.votes} players={gameState.players} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
+                )}
+
+                {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} isHarryPotterMode={gameState.isHarryPotterMode} />}
+
+                {gameState.phase === GamePhase.FINAL_LEADERBOARD && <FinalLeaderboard players={gameState.players} onReset={() => dispatch({ type: 'RESET_GAME' })} isHost={isHost} history={gameState.history} gameMode={gameState.gameMode} />}
+
+                {/* Mobile Leaderboard / Admin Panel - visible on mobile only */}
+                {renderLeaderboard(true)}
+            </div>
             )}
-            
-            {gameState.phase === GamePhase.PLAYER_INPUT && (
-              localPlayerId === gameState.gameMasterId ? (
-                <div className="text-center pt-10">
-                   <Avatar avatar={gm?.avatar || ""} size="3xl" className="mx-auto mb-8 border-8 border-brand-dark" />
-                   <h2 className="text-3xl font-bold mb-8">Spieler überlegen...</h2>
-                   <div className="max-w-md mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {gameState.players.filter(p => !p.isHeckler && p.id !== gameState.gameMasterId).map(p => {
-                        const sub = gameState.submittedAnswers.some(a => a.authorId === p.id);
-                        return (
-                          <div key={p.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${sub ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-white/50'}`}>
-                             <Avatar avatar={p.avatar} size="sm" /><div className="flex-1 text-left"><p className="font-bold truncate">{p.name}</p></div>{sub && <CheckCircle2 size={20} className="text-green-500" />}
-                          </div>
-                        );
-                      })}
-                   </div>
-                   <p className="text-purple-300 mt-10 flex items-center justify-center gap-2"><Eye className="animate-pulse" /> Du bist der Spielleiter.</p>
-                </div>
-              ) : gameState.participantIds.includes(localPlayerId) ? <PlayerInput player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} onSubmit={(t) => dispatch({ type: 'SUBMIT_FAKE', payload: { playerId: localPlayerId!, text: cleanAnswer(t) } })} hasSubmitted={gameState.submittedAnswers.some(a => a.authorId === localPlayerId)} timerEndTime={gameState.timerEndTime} timerTotal={gameState.timerDuration} /> : <div className="text-center pt-20"><Users size={60} className="mx-auto mb-4 text-brand-accent animate-pulse" /><h2 className="text-2xl font-bold">Du schaust gerade zu...</h2></div>
-            )}
+        </div>
 
-            {renderTimerControls()}
+        {/* Desktop Sidebar - visible on desktop only */}
+        {renderLeaderboard(false)}
 
-            {gameState.phase === GamePhase.VOTING && (
-              (gameState.participantIds.includes(localPlayerId) || localPlayerId === gameState.gameMasterId) ? <Voting player={gameState.players.find(p => p.id === localPlayerId)!} question={gameState.question} answers={gameState.submittedAnswers} onSubmitVote={(aid) => dispatch({ type: 'VOTE', payload: { playerId: localPlayerId!, answerId: aid } })} hasVoted={!!gameState.votes[localPlayerId!]} isGameMaster={(localPlayerId === gameState.gameMasterId)} votes={gameState.votes} players={gameState.players} /> : <div className="text-center pt-20"><h2 className="text-2xl font-bold">Abstimmung...</h2></div>
-            )}
-
-            {gameState.phase === GamePhase.RESOLUTION && <Resolution localPlayerId={localPlayerId} question={gameState.question} correctAnswerText={gameState.correctAnswerText} answers={gameState.submittedAnswers} players={gameState.players} votes={gameState.votes} onNextRound={() => dispatch({ type: 'NEXT_ROUND' })} onRevealAnswer={(aid) => dispatch({ type: 'REVEAL_ANSWER', payload: { answerId: aid } })} onAwardPoint={(pid) => dispatch({ type: 'AWARD_POINT', payload: { playerId: pid } })} onEndGame={() => dispatch({ type: 'END_GAME' })} isHost={isHost} revealedAnswerIds={gameState.revealedAnswerIds} gameMasterId={gameState.gameMasterId} awardedBonusIds={gameState.awardedBonusIds} roastData={gameState.roastData} gameMode={gameState.gameMode} isHarryPotterMode={gameState.isHarryPotterMode} />}
-
-            {gameState.phase === GamePhase.FINAL_LEADERBOARD && <FinalLeaderboard players={gameState.players} onReset={() => dispatch({ type: 'RESET_GAME' })} isHost={isHost} history={gameState.history} gameMode={gameState.gameMode} />}
-          </div>
-        )}
-
-        {localPlayerId && isHost && (
-          <div className="mt-20 border-t border-white/10 pt-10">
-             <div className="flex items-center gap-2 text-xs font-black uppercase text-brand-accent mb-4"><Settings size={14}/> Admin</div>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               {gameState.players.map(p => (
-                 <div key={p.id} className={`p-4 rounded-xl flex items-center justify-between border ${p.id === localPlayerId ? 'bg-brand-accent/10 border-brand-accent' : 'bg-white/5'}`}>
-                   <div className="flex items-center gap-3"><Avatar avatar={p.avatar} size="sm" /><span className="text-sm font-bold">{p.name} {p.id === localPlayerId && "(Du)"}</span></div>
-                   {p.id !== localPlayerId && <button onClick={() => dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } })} className="p-2 text-red-500"><UserX size={18} /></button>}
-                 </div>
-               ))}
-             </div>
-          </div>
-        )}
       </div>
     </div>
   );

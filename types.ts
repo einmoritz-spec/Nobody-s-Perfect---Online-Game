@@ -26,7 +26,14 @@ export const AVATAR_IMAGES = [
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_6.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_7.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_8.jpg",
-  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_9.jpg"
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_9.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_10.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_11.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_12.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_13.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_14.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_15.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_16.jpg"
 ];
 
 export enum GamePhase {

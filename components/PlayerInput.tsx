@@ -81,7 +81,7 @@ export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSu
   }
 
   return (
-    <div className="max-w-lg mx-auto animate-fade-in pb-24">
+    <div className="max-w-4xl mx-auto animate-fade-in pb-24">
       <div className="text-center mb-8">
         <span className="inline-block px-3 py-1 bg-purple-800 rounded-full text-xs font-semibold tracking-wider uppercase mb-2">
           Kreativ werden
@@ -90,53 +90,59 @@ export const PlayerInput: React.FC<PlayerInputProps> = ({ player, question, onSu
         <p className="text-gray-300">Erfinde eine Antwort!</p>
       </div>
 
-      <Card>
-        <div className="mb-8 p-4 bg-purple-950/60 rounded-xl border border-purple-700/50">
-          <p className="text-sm text-purple-300 mb-1 uppercase tracking-wide">Die Frage:</p>
-          <p className="text-xl font-medium leading-relaxed">{question}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* LINKS: FRAGE */}
+        <div className="lg:sticky lg:top-8">
+            <div className="p-6 bg-purple-950/60 rounded-2xl border border-purple-700/50 shadow-xl">
+                <p className="text-sm text-purple-300 mb-2 uppercase tracking-wide font-bold">Die Frage:</p>
+                <p className="text-2xl font-serif font-medium leading-relaxed">{question}</p>
+            </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-sm font-medium text-white">
-                <label className="flex items-center gap-2">
-                  <PenTool size={16} />
-                  Deine Antwort
-                </label>
-                {timeLeft !== null && (
-                  <span className={`flex items-center gap-1 font-mono font-bold ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-brand-accent'}`}>
-                     <Timer size={14} /> {timeLeft}s
-                  </span>
+        {/* RECHTS: EINGABE */}
+        <Card>
+            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm font-medium text-white">
+                    <label className="flex items-center gap-2">
+                    <PenTool size={16} />
+                    Deine Antwort
+                    </label>
+                    {timeLeft !== null && (
+                    <span className={`flex items-center gap-1 font-mono font-bold ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-brand-accent'}`}>
+                        <Timer size={14} /> {timeLeft}s
+                    </span>
+                    )}
+                </div>
+
+                {/* Progress Bar */}
+                {timerTotal && timeLeft !== null && (
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                        <div 
+                            className={`h-full transition-all duration-200 ease-linear ${getProgressColor(progressPercentage)}`} 
+                            style={{ width: `${progressPercentage}%` }}
+                        />
+                    </div>
                 )}
+
+                <textarea
+                required
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Klingt absolut glaubwürdig..."
+                className="w-full px-4 py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-accent min-h-[160px]"
+                />
+                <p className="text-xs text-gray-400">
+                Versuche so zu klingen wie das Lexikon!
+                </p>
             </div>
 
-            {/* Progress Bar */}
-            {timerTotal && timeLeft !== null && (
-                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-                    <div 
-                        className={`h-full transition-all duration-200 ease-linear ${getProgressColor(progressPercentage)}`} 
-                        style={{ width: `${progressPercentage}%` }}
-                    />
-                </div>
-            )}
-
-            <textarea
-              required
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Klingt absolut glaubwürdig..."
-              className="w-full px-4 py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-accent min-h-[120px]"
-            />
-            <p className="text-xs text-gray-400">
-              Versuche so zu klingen wie das Lexikon!
-            </p>
-          </div>
-
-          <Button type="submit" fullWidth>
-            Absenden
-          </Button>
-        </form>
-      </Card>
+            <Button type="submit" fullWidth>
+                Absenden
+            </Button>
+            </form>
+        </Card>
+      </div>
     </div>
   );
 };
