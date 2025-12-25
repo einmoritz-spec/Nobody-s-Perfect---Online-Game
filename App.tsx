@@ -145,6 +145,16 @@ const App: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  // SCROLL TO TOP ON PHASE CHANGE (Fix für Mobile Host)
+  useEffect(() => {
+    // Timeout ist wichtig, damit React erst das Layout rendern kann, bevor gescrollt wird
+    // 'instant' verhindert, dass der Browser das Scrollen als Animation ausführt oder vom User abgebrochen wird
+    const t = setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [gameState.phase]);
+
   // --- HEARTBEAT & SYNC ---
   // Der Host sendet regelmäßig den State, um Verbindungsabbrüche zu verhindern (Keep-Alive)
   // und um sicherzustellen, dass Clients, die kurz weg waren, sofort wieder up-to-date sind.
@@ -351,7 +361,7 @@ const App: React.FC = () => {
           console.warn("Connection to host closed.");
           
           // --- HOST MIGRATION (Emergency) ---
-          // Wenn der Host weg ist, prüfen wir, ob wir der nächste Host sein sollten.
+          // Wenn der Host geht, prüfen wir, ob wir der nächste Host sein sollten.
           const currentPlayers = gameStateRef.current.players;
           const me = currentPlayers.find(p => p.id === clientId);
           
@@ -364,10 +374,6 @@ const App: React.FC = () => {
                  // Ich bin der Auserwählte!
                  console.log("Host disconnected. Promoting self to Host.");
                  setIsHost(true);
-                 // Da wir die Peer-Verbindung verloren haben, können wir keine Nachrichten an andere senden,
-                 // aber wir können den Status lokal übernehmen. 
-                 // In einem reinen P2P Mesh müsste man nun alle reconnecten.
-                 // Hier retten wir zumindest das UI für den neuen Admin.
                  setGameState(prev => ({
                      ...prev,
                      players: prev.players.map(p => p.id === me.id ? {...p, isHost: true} : p)
@@ -627,7 +633,13 @@ const App: React.FC = () => {
       case 'START_TIMER': return { ...state, timerEndTime: Date.now() + action.payload.duration * 1000, timerDuration: action.payload.duration }; // Sync Timer & Duration
       case 'UPDATE_PLAYER': return { ...state, players: state.players.map(p => p.id === action.payload.playerId ? { ...p, ...action.payload } : p) };
       case 'TOGGLE_TROLL_MODE': {
-        if (action.payload.enable) return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
+        if (action.payload.enable) {
+            // HÄRTUNG: Verhindere Duplikate!
+            // Wenn der Heckler schon da ist, füge ihn nicht nochmal hinzu (wichtig bei schnellen Clicks oder Re-Renders)
+            if (state.players.some(p => p.id === HECKLER_ID)) return state;
+            
+            return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
+        }
         return { ...state, players: state.players.filter(p => !p.isHeckler) };
       }
       case 'TOGGLE_HP_MODE': return { ...state, isHarryPotterMode: action.payload.enable };
@@ -798,26 +810,34 @@ const App: React.FC = () => {
 
   // --- HECKLER / ROAST LOGIC ---
   const generateRoundRoast = async () => {
+      // WICHTIG: Nutze gameStateRef.current, um sicherzustellen, dass wir den aktuellsten State haben
+      // (auch wenn die Closure beim Erstellen des Effects alt war).
+      // Das behebt das Problem, dass der Heckler als "nicht da" angesehen wurde.
+      const currentGameState = gameStateRef.current;
+
       // 1. Abbrechen wenn bereits in Arbeit oder schon vorhanden
-      if (roastProcessingRef.current || gameState.roastData) return;
+      if (roastProcessingRef.current || currentGameState.roastData) return;
       
-      const heckler = gameState.players.find(p => p.isHeckler);
-      if (!heckler) return;
+      const heckler = currentGameState.players.find(p => p.isHeckler);
+      if (!heckler) {
+          console.log("Roast abgebrochen: Kein Heckler gefunden.");
+          return;
+      }
 
       roastProcessingRef.current = true;
 
       // 2. Suche Opfer: Spieler, die für eine FALSCHE Antwort gestimmt haben
       const victims: { player: Player, answer: Answer }[] = [];
-      const votes = gameState.votes;
+      const votes = currentGameState.votes;
 
-      for (const p of gameState.players) {
+      for (const p of currentGameState.players) {
           if (p.isHeckler) continue; 
           if (p.isBot) continue; // WICHTIG: Keine Bots roasten
           
           const votedAnswerId = votes[p.id];
           if (!votedAnswerId) continue;
 
-          const votedAnswer = gameState.submittedAnswers.find(a => a.id === votedAnswerId);
+          const votedAnswer = currentGameState.submittedAnswers.find(a => a.id === votedAnswerId);
           if (votedAnswer && !votedAnswer.isCorrect) {
              victims.push({ player: p, answer: votedAnswer });
           }
@@ -833,15 +853,17 @@ const App: React.FC = () => {
 
       try {
           const ai = getAiInstance();
-          const prompt = `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz.
-              Frage: "${gameState.question}".
+          const isHP = currentGameState.isHarryPotterMode;
+          const prompt = `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz${isHP ? ' im Harry Potter Universum' : ''}.
+              Frage: "${currentGameState.question}".
               Spieler "${victim.player.name}" hat tatsächlich geglaubt, die Antwort sei: "${victim.answer.text}".
 
               Aufgabe: Roaste ${victim.player.name} in 2-3 Sätzen dafür. 
               - Nutze MAXIMAL EINE Jugendsprache-Phrase (z.B. "Uff", "Lost", "Digga").
               - Der Fokus liegt darauf, wie lächerlich der Inhalt der Antwort "${victim.answer.text}" ist. 
               - Mache dich konkret darüber lustig, dass jemand so etwas Absurdes für wahr hält.
-              - **WICHTIG:** Markiere die Pointe oder die härteste Beleidigung fett, indem du sie mit zwei Sternchen umschließt (z.B. **du Lauch**).`;
+              - **WICHTIG:** Markiere die Pointe oder die härteste Beleidigung fett, indem du sie mit zwei Sternchen umschließt (z.B. **du Lauch**).
+              ${isHP ? '- Da wir im Harry Potter Modus sind, nutze gerne auch magische Anspielungen oder vergleiche ihn mit einem Muggel, Squib oder Schlammblut (vorsichtig).' : ''}`;
 
           const resp = await safeGenerateContent(ai, prompt);
           const text = resp.text?.trim() || "Uff. Wie kann man das nur glauben?";
@@ -881,11 +903,13 @@ const App: React.FC = () => {
 
       try {
           const ai = getAiInstance();
+          const isHP = gameStateRef.current.isHarryPotterMode;
           const prompt = `Du bist "Troll Torben". Das Spiel ist vorbei. 
               Der Verlierer ist: ${loserName} mit nur ${loserScore} Punkten.
               Aufgabe: Roaste den Verlierer gnadenlos für diesen letzten Platz.
               Umfang: 2-3 kurze, zynische Sätze.
-              Nutze Jugendsprache (z.B. "lost", "bodenlos").`;
+              Nutze Jugendsprache (z.B. "lost", "bodenlos").
+              ${isHP ? 'Nutze Harry Potter Anspielungen (z.B. "Nicht mal Hufflepuff würde dich nehmen").' : ''}`;
 
           const resp = await safeGenerateContent(ai, prompt);
           const text = resp.text?.trim();
@@ -1122,6 +1146,7 @@ const App: React.FC = () => {
     if (gameState.phase === GamePhase.LOBBY) return null;
 
     const sortedPlayers = [...gameState.players].filter(p => !p.isHeckler).sort((a,b) => b.score - a.score);
+    const heckler = gameState.players.find(p => p.isHeckler);
 
     const containerClasses = isMobile 
         ? "lg:hidden mt-8 mb-24 w-full animate-fade-in-up" 
@@ -1188,6 +1213,20 @@ const App: React.FC = () => {
                          </div>
                      </div>
                  ))}
+
+                 {/* HECKLER DISPLAY */}
+                 {heckler && (
+                    <div className="mt-4 pt-4 border-t border-white/10 opacity-70 hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-3 p-2 bg-pink-900/20 border border-pink-500/30 rounded-lg">
+                            <Avatar avatar={heckler.avatar} size="xs" />
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-pink-300">{heckler.name}</span>
+                                <span className="text-[9px] text-pink-400/70 uppercase">Lästert über euch</span>
+                            </div>
+                            <Ghost size={16} className="ml-auto text-pink-500" />
+                        </div>
+                    </div>
+                 )}
              </div>
 
              {/* Admin Controls in Sidebar for quick access */}
