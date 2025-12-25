@@ -9,25 +9,24 @@ export interface Player {
   id: PlayerId;
   name: string;
   score: number;
-  avatar: string; // Hex-Farbcode
+  avatar: string; // URL oder Hex-Code
   isHost?: boolean;
   isBot?: boolean;
   botPersonality?: BotPersonality;
   isHeckler?: boolean; // Neuer Flag für den reinen Zuschauer-Troll
 }
 
-// 10 Eindeutige, gut unterscheidbare Farben
-export const AVATAR_COLORS = [
-  '#ef4444', // Red
-  '#f97316', // Orange
-  '#fbbf24', // Amber/Yellow
-  '#84cc16', // Lime
-  '#10b981', // Emerald/Green
-  '#06b6d4', // Cyan
-  '#3b82f6', // Blue
-  '#6366f1', // Indigo
-  '#a855f7', // Purple
-  '#ec4899', // Pink
+// Monster Avatar URLs
+export const AVATAR_IMAGES = [
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_1.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_2.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_3.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_4.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_5.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_6.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_7.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_8.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_9.jpg"
 ];
 
 export enum GamePhase {

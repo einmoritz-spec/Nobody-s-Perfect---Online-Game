@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Player, AVATAR_COLORS, BotPersonality, GameMode } from '../types';
+import { Player, AVATAR_IMAGES, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
@@ -41,7 +41,7 @@ export const Lobby: React.FC<LobbyProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_COLORS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_IMAGES[0]);
   const [view, setView] = useState<'main' | 'join' | 'create'>('main');
   const [showBotModal, setShowBotModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
@@ -155,33 +155,38 @@ export const Lobby: React.FC<LobbyProps> = ({
 
   const renderAvatarPicker = (currentSelection: string, onSelect: (c: string) => void, takenColors: string[] = []) => (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-purple-200 block">Wähle deine Farbe</label>
-      <div className="grid grid-cols-5 gap-3">
-        {AVATAR_COLORS.map((color) => {
-          const isTaken = takenColors.includes(color) && color !== currentSelection;
+      <label className="text-sm font-medium text-purple-200 block">Wähle deinen Monster-Avatar</label>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        {AVATAR_IMAGES.map((imgUrl) => {
+          const isTaken = takenColors.includes(imgUrl) && imgUrl !== currentSelection;
           return (
            <button
-            key={color}
+            key={imgUrl}
             type="button"
             disabled={isTaken}
-            onClick={() => onSelect(color)}
+            onClick={() => onSelect(imgUrl)}
             className={`
               relative aspect-square rounded-full transition-all flex items-center justify-center overflow-hidden border-2 
-              ${currentSelection === color 
-                ? 'border-brand-accent scale-110 ring-2 ring-brand-accent/50 z-10' 
+              ${currentSelection === imgUrl 
+                ? 'border-brand-accent scale-110 ring-2 ring-brand-accent/50 z-10 shadow-xl' 
                 : isTaken 
-                  ? 'border-transparent opacity-20 cursor-not-allowed scale-90'
+                  ? 'border-transparent opacity-20 cursor-not-allowed grayscale'
                   : 'border-white/10 hover:border-white/30 hover:scale-105'
               }
             `}
-            style={{ backgroundColor: color }}
             title={isTaken ? 'Bereits vergeben' : 'Wählen'}
           >
-            {currentSelection === color && (
-              <Check size={20} strokeWidth={4} className="text-white drop-shadow-md" />
+            <img src={imgUrl} alt="Avatar" className="w-full h-full object-cover" />
+            
+            {currentSelection === imgUrl && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <Check size={20} strokeWidth={4} className="text-brand-accent drop-shadow-md" />
+              </div>
             )}
             {isTaken && (
-              <Lock size={16} className="text-white/50" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <Lock size={16} className="text-white/50" />
+              </div>
             )}
           </button>
         )})}

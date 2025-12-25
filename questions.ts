@@ -52,7 +52,6 @@ export const HP_QUESTIONS = [
     { q: "Was bewirkt der Zauberspruch 'Melofors'?", a: "Er steckt den Kopf des Opfers in einen Kürbis" },
     { q: "Was ist ein 'Bundimun'?", a: "Ein pilzartiges Wesen, das Häuser verrotten lässt" },
     { q: "Was macht der Zauberspruch 'Mobiliarbus'?", a: "Er bewegt Bäume oder hölzerne Objekte" },
-    { q: "Was ist ein 'Mackled Malaclaw'?", a: "Ein Hummer, dessen Verzehr Unglück bringt" },
     { q: "Was bewirkt der Zauberspruch 'Duro'?", a: "Er verwandelt Objekte in festen Stein" },
     { q: "Was ist ein 'Nogschwanz'?", a: "Ein Dämon in Ferkelgestalt, der schwer zu fangen ist" },
     { q: "Was macht der Zauberspruch 'Specialis Revelio'?", a: "Er enthüllt verborgene magische Eigenschaften eines Objekts" },

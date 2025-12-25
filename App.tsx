@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_COLORS, BotPersonality, GameMode, RoundHistory } from './types';
+import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_IMAGES, BotPersonality, GameMode, RoundHistory } from './types';
 import { Lobby } from './components/Lobby';
 import { GameMasterInput } from './components/GameMasterInput';
 import { PlayerInput } from './components/PlayerInput';
@@ -553,10 +553,22 @@ const App: React.FC = () => {
   const generateAiContent = async (categoryInput: string, personality: BotPersonality = 'pro') => {
     setIsAiLoading(true);
     const cat = CATEGORIES.find(c => c.id === categoryInput) || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    const isHP = gameStateRef.current.isHarryPotterMode;
+
+    // Wenn HP Modus UND kein Troll: Nutze direkt den Pool, statt KI zu fragen
+    if (isHP && personality !== 'troll') {
+       const pool = HP_QUESTIONS;
+       const randomQ = pool[Math.floor(Math.random() * pool.length)];
+       setIsAiLoading(false);
+       return { 
+           question: randomQ.q, 
+           correctAnswer: cleanAnswer(randomQ.a), 
+           category: 'harry_potter' 
+       };
+    }
     
-    // Fallback: Wähle eine echte Frage aus dem Pool
+    // Fallback Funktion (für andere Modi oder Fehlerfall)
     const fallback = () => {
-      const isHP = gameStateRef.current.isHarryPotterMode;
       const pool = isHP ? HP_QUESTIONS : (QUESTIONS[cat.id] || QUESTIONS['words']);
       const randomQ = pool[Math.floor(Math.random() * pool.length)];
       return {
@@ -568,19 +580,27 @@ const App: React.FC = () => {
 
     try {
       const ai = getAiInstance();
-      const isHP = gameStateRef.current.isHarryPotterMode;
-
       let prompt = `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
       
       // SPEZIAL LOGIK FÜR TROLL BOT
       if (personality === 'troll') {
           if (isHP) {
-             prompt = `Du bist ein lustiger Troll im Harry Potter Universum. Erfinde eine absolut absurde, lustige QUATSCH-FRAGE, die mit Zauberei zu tun hat aber keinen echten Sinn ergibt (z.B. "Warum tragen Hauselfen keine Socken mit Sandalen?"). Dazu eine "korrekte" Antwort, die ebenso Quatsch ist. Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+             // Einfachere Quatsch-Fragen im HP Kontext
+             prompt = `Du bist ein lustiger Troll im Harry Potter Universum.
+             Aufgabe: Erfinde eine kurze, einfache, aber total absurde QUATSCH-FRAGE zu einem *komplett erfundenen* magischen Ding (z.B. "Was macht der Zauberspruch 'Popel-Patronus'?" oder "Was ist ein 'Schoko-Schnarcher'?").
+             Dazu eine "korrekte" Antwort, die lustig ist, aber *plausibel klingt* (als wäre es ein echter Fakt, keine reine wirre Buchstabenfolge).
+             Antwort MAXIMAL 8 Wörter. Keine Punkte am Ende.
+             JSON Format: {"question": "...", "correctAnswer": "..."}`;
           } else {
-             prompt = `Du bist der Spielleiter in einem Bluff-Spiel, aber du bist ein lustiger Troll. Erfinde eine absolut absurde, lustige QUATSCH-FRAGE, die eigentlich keinen Sinn ergibt (z.B. "Warum tragen Bananen keine Toupets?"). Dazu eine "korrekte" Antwort, die ebenso Quatsch ist. Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
+             // Einfachere Quatsch-Fragen im Standard Kontext
+             prompt = `Du bist ein lustiger Troll-Spielleiter.
+             Aufgabe: Erfinde eine kurze, einfache, aber total absurde QUATSCH-FRAGE (z.B. "Warum tragen Pinguine keine Socken?" oder "Wozu dient der 'Nudel-Magnet'?").
+             Dazu eine "korrekte" Antwort, die lustig ist, aber *plausibel und logisch klingt* (als wäre es ein echter Fakt).
+             Antwort MAXIMAL 8 Wörter. Keine Punkte am Ende.
+             JSON Format: {"question": "...", "correctAnswer": "..."}`;
           }
       } else if (isHP) {
-          // SPEZIAL LOGIK FÜR HARRY POTTER MODUS (NICHT TROLL)
+          // SPEZIAL LOGIK FÜR HARRY POTTER MODUS (KI Generierung, falls kein Pool genutzt wird - aktuell via if oben abgefangen)
           prompt = `Nobody's Perfect: Harry Potter Universum. Typ: ${personality}. Erfinde eine kuriose Frage über einen sehr unbekannten Zauberspruch, ein magisches Wesen oder ein Objekt aus der Harry Potter Welt. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}`;
       }
 
@@ -1097,7 +1117,9 @@ const App: React.FC = () => {
         ? available[Math.floor(Math.random() * available.length)] 
         : `${personality === 'pro' ? 'Profi' : personality === 'beginner' ? 'Noob' : 'Bot'} ${Math.floor(Math.random() * 100)}`;
 
-    const av = AVATAR_COLORS.find(c => !gameState.players.map(pl => pl.avatar).includes(c)) || AVATAR_COLORS[0];
+    // Random Monster Avatar for Bots
+    const av = AVATAR_IMAGES.find(c => !gameState.players.map(pl => pl.avatar).includes(c)) || AVATAR_IMAGES[Math.floor(Math.random() * AVATAR_IMAGES.length)];
+    
     dispatch({ type: 'ADD_BOT', payload: { botId: `bot-${Math.random().toString(36).substr(2,9)}`, name: n, avatar: av, personality } });
   }
 };
