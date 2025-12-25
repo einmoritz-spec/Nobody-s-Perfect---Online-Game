@@ -66,8 +66,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   useEffect(() => {
     if (view === 'create' || view === 'join') {
       const shuffled = [...AVATAR_IMAGES].sort(() => 0.5 - Math.random());
-      // Wir nehmen mehr Avatare, damit die Auswahl voll wirkt, aber nicht scrollt
-      const selected = shuffled.slice(0, 15); 
+      // Nur 8 Avatare nehmen für 2 Reihen à 4 Bilder (groß, kein Scrollen)
+      const selected = shuffled.slice(0, 8); 
       setRandomAvatars(selected);
       // Wähle automatisch den ersten der neuen Auswahl, falls der alte nicht dabei ist
       if (!selected.includes(selectedAvatar)) {
@@ -201,7 +201,13 @@ export const Lobby: React.FC<LobbyProps> = ({
       {previewAvatar && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in" onPointerUp={handlePressEnd} onTouchEnd={handlePressEnd}>
            <div className="relative">
-              <img src={previewAvatar} alt="Preview" className="w-64 h-64 sm:w-80 sm:h-80 object-cover rounded-full border-4 border-brand-accent shadow-[0_0_50px_rgba(245,158,11,0.5)]" />
+              <img 
+                src={previewAvatar} 
+                alt="Preview" 
+                className="w-64 h-64 sm:w-80 sm:h-80 object-cover rounded-full border-4 border-brand-accent shadow-[0_0_50px_rgba(245,158,11,0.5)]" 
+                style={{ WebkitTouchCallout: 'none' }}
+                onContextMenu={(e) => e.preventDefault()}
+              />
               <div className="absolute -bottom-10 left-0 right-0 text-center text-white font-bold animate-pulse">Vorschau</div>
            </div>
         </div>
@@ -215,7 +221,7 @@ export const Lobby: React.FC<LobbyProps> = ({
       <div className={`
         grid p-1
         ${isLargeMode 
-            ? 'grid-cols-5 gap-2 sm:grid-cols-5 sm:gap-3' // Kompakteres Grid auf Mobile
+            ? 'grid-cols-4 gap-2 sm:gap-4' // Kompakteres Grid auf Mobile
             : 'grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar'
         }
       `}>
@@ -231,7 +237,7 @@ export const Lobby: React.FC<LobbyProps> = ({
             onPointerDown={() => handlePressStart(imgUrl)}
             onPointerUp={handlePressEnd}
             onPointerLeave={handlePressEnd}
-            onContextMenu={(e) => e.preventDefault()} // Verhindert Rechtsklick-Menü auf Mobile
+            onContextMenu={(e) => e.preventDefault()} // Verhindert Rechtsklick-Menü auf Mobile (auf dem Button)
             // -------------------------------------
             className={`
               relative aspect-square rounded-full transition-all flex items-center justify-center overflow-hidden border-2 touch-manipulation select-none
@@ -244,11 +250,17 @@ export const Lobby: React.FC<LobbyProps> = ({
             `}
             title={isTaken ? 'Bereits vergeben' : 'Wählen (Gedrückt halten für Vorschau)'}
           >
-            <img src={imgUrl} alt="Avatar" className="w-full h-full object-cover pointer-events-none" />
+            <img 
+              src={imgUrl} 
+              alt="Avatar" 
+              className="w-full h-full object-cover pointer-events-none select-none" 
+              style={{ WebkitTouchCallout: 'none' }} // Verhindert iOS Menü (Save/Copy)
+              onContextMenu={(e) => e.preventDefault()} // Extra Sicherheit gegen Context Menu
+            />
             
             {currentSelection === imgUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 animate-fade-in pointer-events-none">
-                <Check size={isLargeMode ? 24 : 20} strokeWidth={isLargeMode ? 4 : 4} className="text-brand-accent drop-shadow-md" />
+                <Check size={isLargeMode ? 32 : 20} strokeWidth={4} className="text-brand-accent drop-shadow-md" />
               </div>
             )}
             {isTaken && (
@@ -266,10 +278,10 @@ export const Lobby: React.FC<LobbyProps> = ({
     return (
       <div className="max-w-md mx-auto animate-fade-in pt-6">
         <Button variant="ghost" onClick={() => setView('main')} className="mb-4">← Zurück</Button>
-        <Card title={view === 'create' ? "Neues Spiel erstellen" : "Spiel beitreten"}>
-          <div className="space-y-6">
+        <Card title={view === 'create' ? "Neues Spiel erstellen" : "Spiel beitreten"} className="!p-4 sm:!p-6">
+          <div className="space-y-3 sm:space-y-6">
             {view === 'join' && (
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2">
                 <label className="text-sm font-medium text-purple-200">Raum-Code</label>
                 <input
                   type="text"
@@ -277,22 +289,22 @@ export const Lobby: React.FC<LobbyProps> = ({
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="ABCD"
                   maxLength={4}
-                  className="w-full px-4 py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 font-mono text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-accent uppercase"
+                  className="w-full px-4 py-2.5 sm:py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 font-mono text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-accent uppercase"
                 />
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <label className="text-sm font-medium text-purple-200">Dein Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Name eingeben..."
-                className="w-full px-4 py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                className="w-full px-4 py-2.5 sm:py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
             
-            {/* Große, zufällige Auswahl (mit Long Press) */}
+            {/* Große, zufällige Auswahl (mit Long Press, nur 8 Items) */}
             {renderAvatarPicker(selectedAvatar, setSelectedAvatar, [], randomAvatars, true)}
 
             <Button 
