@@ -39,6 +39,28 @@ function generateRoomCode(): string {
   return result;
 }
 
+// Robuster Parser für KI-Antworten
+function extractAndParseJson(text: string): any {
+  try {
+    // 1. Versuche direkten Parse nach einfacher Bereinigung
+    const clean = text.replace(/```json\n?|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    // 2. Fallback: Suche nach dem ersten { und letzten }
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start !== -1 && end !== -1) {
+      try {
+        const jsonSubstring = text.substring(start, end + 1);
+        return JSON.parse(jsonSubstring);
+      } catch (innerE) {
+        throw new Error("JSON extraction failed");
+      }
+    }
+    throw e;
+  }
+}
+
 const APP_PREFIX = 'nobodyperfect-game-v1-';
 const SESSION_KEY = 'nobodyperfect-session-v1';
 const STATE_RECOVERY_KEY = 'nobodyperfect-last-state';
@@ -486,20 +508,45 @@ const App: React.FC = () => {
   const generateAiContent = async (categoryInput: string, personality: BotPersonality = 'pro') => {
     setIsAiLoading(true);
     const cat = CATEGORIES.find(c => c.id === categoryInput) || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    
+    const fallback = () => {
+      const pool = QUESTIONS[cat.id] || QUESTIONS['words'];
+      const randomQ = pool[Math.floor(Math.random() * pool.length)];
+      return {
+          question: randomQ.q,
+          correctAnswer: cleanAnswer(randomQ.a),
+          category: cat.id
+      };
+    };
+
     try {
       const ai = getAiInstance();
-      const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}` });
-      const data = JSON.parse(cleanJsonString(resp.text || '{}'));
+      const resp = await ai.models.generateContent({ 
+        model: 'gemini-3-flash-preview', 
+        contents: `Nobody's Perfect: Kategorie ${cat.name}. Typ: ${personality}. Erfinde eine kuriose Frage + WAHRHEIT. Die Wahrheit MUSS EXTREM KURZ sein (max. 8 Wörter). Antworte OHNE Punkt am Ende. JSON: {"question": "...", "correctAnswer": "..."}` 
+      });
+      
+      const data = extractAndParseJson(resp.text || '{}');
+      
+      // VALIDATION: Ensure we have data before returning
+      if (!data.question || typeof data.question !== 'string' || data.question.length < 3) {
+          throw new Error("Invalid or empty question generated");
+      }
+      if (!data.correctAnswer) {
+          throw new Error("Invalid or empty answer generated");
+      }
+
       setIsAiLoading(false);
       return { 
         question: data.question, 
-        correctAnswer: cleanAnswer(data.correctAnswer), // Sanitize answer
+        correctAnswer: cleanAnswer(data.correctAnswer), 
         category: cat.id 
       };
+
     } catch (e) {
+      console.error("AI Generation failed, using fallback", e);
       setIsAiLoading(false);
-      const fallback = QUESTIONS[cat.id][0];
-      return { ...fallback, correctAnswer: cleanAnswer(fallback.a), category: cat.id };
+      return fallback();
     }
   };
 
