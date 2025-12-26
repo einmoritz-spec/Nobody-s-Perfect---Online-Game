@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, AVATAR_IMAGES, HP_AVATAR_IMAGES, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
@@ -22,6 +21,7 @@ interface LobbyProps {
   isHost: boolean;
   roomCode?: string;
   connectionStatus: string;
+  isHarryPotterMode?: boolean; // NEW: receive mode from server state
 }
 
 export const Lobby: React.FC<LobbyProps> = ({ 
@@ -38,7 +38,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   onToggleHPMode,
   isHost,
   roomCode,
-  connectionStatus
+  connectionStatus,
+  isHarryPotterMode
 }) => {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -59,16 +60,30 @@ export const Lobby: React.FC<LobbyProps> = ({
   // Check if Troll Torben is present
   const isTrollModeActive = players.some(p => p.isHeckler);
   
+  // Ref to track previous value of HP mode to detect transition to true
+  const prevHPModeRef = useRef(isHarryPotterMode);
+
   // Sync local HP Mode State with Players State (falls vom Server kommt)
   useEffect(() => {
-     // Wir leiten den aktuellen HP Modus Status vom Server-State ab, falls vorhanden.
-  }, []);
+     if (isHarryPotterMode !== undefined) {
+         setIsHPMode(isHarryPotterMode);
+         
+         // Logic: If mode changes from FALSE/UNDEFINED to TRUE, open the modal for EVERYONE
+         if (isHarryPotterMode && !prevHPModeRef.current) {
+             setShowHpAvatarSelection(true);
+         }
+         
+         prevHPModeRef.current = isHarryPotterMode;
+     }
+  }, [isHarryPotterMode]);
 
   const toggleHP = () => {
-      // Optimistisches Update für den Button
       const newVal = !isHPMode; 
       setIsHPMode(newVal);
       onToggleHPMode?.(newVal);
+      // NOTE: We do NOT open the modal here anymore for the host manually.
+      // We rely on the useEffect above which listens to the prop change coming back from the server.
+      // This ensures consistency.
   };
 
   // Zufällige Auswahl von Avataren initialisieren
@@ -449,13 +464,7 @@ export const Lobby: React.FC<LobbyProps> = ({
 
                         {/* Harry Potter Modus Toggle */}
                         <div 
-                        onClick={() => {
-                            const newMode = !isHPMode;
-                            setIsHPMode(newMode);
-                            onToggleHPMode?.(newMode);
-                            // Wenn Host einschaltet, öffnet sich bei ihm (und anderen) das Fenster
-                            if (newMode) setShowHpAvatarSelection(true);
-                        }}
+                        onClick={toggleHP}
                         className={`
                             cursor-pointer p-3 rounded-xl border transition-all flex items-center justify-between
                             ${isHPMode ? 'bg-amber-900/40 border-amber-400' : 'bg-white/5 border-white/10 hover:bg-white/10'}
