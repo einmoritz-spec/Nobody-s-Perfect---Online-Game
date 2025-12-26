@@ -7,7 +7,7 @@ import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
 import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles, BookOpen, Scroll, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { HP_QUESTIONS } from '../questions';
+import { HP_QUESTIONS_EASY, HP_QUESTIONS_HARD } from '../questions';
 
 interface ResolutionProps {
   localPlayerId: string | null;
@@ -71,8 +71,11 @@ export const Resolution: React.FC<ResolutionProps> = ({
   const scrolledAnswerIdsRef = useRef<Set<string>>(new Set());
   const hasScrolledToRoastRef = useRef(false);
 
-  // HP Facts Logic
-  const hpFact = isHarryPotterMode ? HP_QUESTIONS.find(i => i.q === question) : null;
+  // HP Facts Logic: Suche in beiden Pools
+  const hpFact = isHarryPotterMode 
+      ? [...HP_QUESTIONS_HARD, ...HP_QUESTIONS_EASY].find(i => i.q === question) 
+      : null;
+
   const correctAnswerId = answers.find(a => a.isCorrect)?.id;
   const showHpFact = !!(hpFact && correctAnswerId && revealedAnswerIds.includes(correctAnswerId) && hpFact.info);
 
@@ -343,9 +346,9 @@ export const Resolution: React.FC<ResolutionProps> = ({
                     <div className="flex flex-wrap gap-1.5 items-center">
                       <span className="text-[9px] text-white/30 font-bold uppercase mr-1">Tipps:</span>
                       {voters.map(v => (
-                        <div key={v.id} className={`px-2 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 border shadow-sm ${v.id === ans.authorId ? 'bg-red-500/20 border-red-500/40 text-red-200' : 'bg-white text-brand-dark border-white'}`}>
-                          <Avatar avatar={v.avatar} name={v.name} size="xs" />
-                          {v.name}
+                        <div key={v.id} className={`pl-0 pr-3 py-0 rounded-full text-xs font-black flex items-center gap-2 border shadow-sm ${v.id === ans.authorId ? 'bg-red-500/20 border-red-500/40 text-red-200' : 'bg-white/10 text-purple-100 border-white/20 backdrop-blur-sm'}`}>
+                          <Avatar avatar={v.avatar} name={v.name} size="sm" className="!w-12 !h-12 !border-2" />
+                          <span className="truncate max-w-[80px] sm:max-w-[120px] leading-none">{v.name}</span>
                         </div>
                       ))}
                     </div>

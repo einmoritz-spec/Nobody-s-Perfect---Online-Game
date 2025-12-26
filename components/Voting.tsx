@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Player, Answer, PlayerId } from '../types';
 import { Button } from './ui/Button';
@@ -65,11 +66,11 @@ export const Voting: React.FC<VotingProps> = ({ player, question, answers, onSub
                 
                 {/* Live Votes Visualization for GM */}
                 {voters.length > 0 && (
-                   <div className="flex flex-wrap gap-1 pl-12 mt-auto pt-2 border-t border-white/5">
+                   <div className="flex flex-wrap gap-1.5 pl-12 mt-auto pt-2 border-t border-white/5">
                       {voters.map((v) => (
-                          <div key={v!.id} className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
-                             <Avatar avatar={v!.avatar} size="xs" />
-                             {v!.name}
+                          <div key={v!.id} className="flex items-center gap-2 bg-white/10 pl-0 pr-3 py-0 rounded-full text-xs text-purple-100 border border-white/20 backdrop-blur-sm">
+                             <Avatar avatar={v!.avatar} size="sm" className="!w-10 !h-10 !border-2" />
+                             <span className="leading-none">{v!.name}</span>
                           </div>
                       ))}
                    </div>

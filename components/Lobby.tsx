@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Player, AVATAR_IMAGES, BotPersonality, GameMode } from '../types';
+import { Player, AVATAR_IMAGES, HP_AVATAR_IMAGES, BotPersonality, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
@@ -49,28 +49,43 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [isHPMode, setIsHPMode] = useState(false);
   const [randomAvatars, setRandomAvatars] = useState<string[]>([]);
   
+  // Neuer State für das HP Avatar Popup
+  const [showHpAvatarSelection, setShowHpAvatarSelection] = useState(false);
+  
   // State für Long-Press Preview
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
-  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if Troll Torben is present
   const isTrollModeActive = players.some(p => p.isHeckler);
+  
+  // Sync local HP Mode State with Players State (falls vom Server kommt)
+  useEffect(() => {
+     // Wir leiten den aktuellen HP Modus Status vom Server-State ab, falls vorhanden.
+  }, []);
 
   const toggleHP = () => {
-      const newVal = !isHPMode;
+      // Optimistisches Update für den Button
+      const newVal = !isHPMode; 
       setIsHPMode(newVal);
       onToggleHPMode?.(newVal);
   };
 
-  // Zufällige Auswahl von Avataren beim Öffnen von Join/Create
+  // Zufällige Auswahl von Avataren initialisieren
   useEffect(() => {
-    if (view === 'create' || view === 'join') {
+    // Generiere Avatare, wenn wir im Setup sind ODER wenn noch keine da sind (z.B. nach Reload im Spiel)
+    if (view === 'create' || view === 'join' || randomAvatars.length === 0) {
+      
+      // Wenn wir bereits im Main View sind und schon Avatare haben, nicht neu würfeln (verhindert Flackern)
+      if (view === 'main' && randomAvatars.length > 0) return;
+
       const shuffled = [...AVATAR_IMAGES].sort(() => 0.5 - Math.random());
-      // Nur 8 Avatare nehmen für 2 Reihen à 4 Bilder (groß, kein Scrollen)
-      const selected = shuffled.slice(0, 8); 
+      // 9 Avatare für perfektes 3x3 Grid auf Mobile
+      const selected = shuffled.slice(0, 9); 
       setRandomAvatars(selected);
-      // Wähle automatisch den ersten der neuen Auswahl, falls der alte nicht dabei ist
-      if (!selected.includes(selectedAvatar)) {
+      
+      // Wähle automatisch den ersten der neuen Auswahl, falls der alte nicht dabei ist (nur im Setup)
+      if ((view === 'create' || view === 'join') && !selected.includes(selectedAvatar)) {
         setSelectedAvatar(selected[0]);
       }
     }
@@ -193,7 +208,8 @@ export const Lobby: React.FC<LobbyProps> = ({
     onSelect: (c: string) => void, 
     takenColors: string[] = [], 
     availableAvatars: string[] = AVATAR_IMAGES,
-    isLargeMode: boolean = false
+    isLargeMode: boolean = false,
+    hideLabels: boolean = false // Neuer Parameter
   ) => (
     <div className="space-y-3 relative">
       
@@ -213,15 +229,17 @@ export const Lobby: React.FC<LobbyProps> = ({
         </div>
       )}
 
-      <div className="flex justify-between items-center">
-         <label className="text-sm font-medium text-purple-200 block">Wähle deinen Monster-Avatar</label>
-         <span className="text-[10px] text-white/40 flex items-center gap-1"><ZoomIn size={10} /> Gedrückt halten für Zoom</span>
-      </div>
+      {!hideLabels && (
+        <div className="flex justify-between items-center">
+             <label className="text-sm font-medium text-purple-200 block">Wähle deinen {availableAvatars === HP_AVATAR_IMAGES ? 'Zauber-' : 'Monster-'}Avatar</label>
+             <span className="text-[10px] text-white/40 flex items-center gap-1"><ZoomIn size={10} /> Gedrückt halten für Zoom</span>
+        </div>
+      )}
       
       <div className={`
         grid p-1
         ${isLargeMode 
-            ? 'grid-cols-4 gap-2 sm:gap-4' // Kompakteres Grid auf Mobile
+            ? 'grid-cols-3 gap-3 sm:gap-5' // 3 Spalten für viel größere Bilder im HP Modus / Create Modus
             : 'grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar'
         }
       `}>
@@ -304,7 +322,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               />
             </div>
             
-            {/* Große, zufällige Auswahl (mit Long Press, nur 8 Items) */}
+            {/* Große, zufällige Auswahl (mit Long Press, nur 9 Items für 3x3) */}
             {renderAvatarPicker(selectedAvatar, setSelectedAvatar, [], randomAvatars, true)}
 
             <Button 
@@ -329,6 +347,38 @@ export const Lobby: React.FC<LobbyProps> = ({
     <div className="max-w-6xl mx-auto animate-fade-in pt-6">
       {renderBotModal()}
       
+      {/* HP AVATAR SELECTION MODAL */}
+      {showHpAvatarSelection && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+             <div className="bg-[#2a1b3d] border-4 border-amber-500 rounded-3xl w-full max-w-2xl shadow-[0_0_60px_rgba(245,158,11,0.3)] relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-700 via-amber-400 to-amber-700"></div>
+                
+                <div className="p-6 text-center">
+                   <div className="flex items-center justify-center gap-3 mb-4">
+                      <Wand2 size={28} className="text-amber-400 animate-pulse" />
+                      <h2 className="text-2xl font-serif font-bold text-amber-100">Wähle deinen Avatar</h2>
+                   </div>
+
+                   {currentPlayer && (
+                        <div className="bg-black/30 rounded-2xl p-4 border border-white/10">
+                            {renderAvatarPicker(
+                                currentPlayer.avatar, 
+                                (newAvatar) => {
+                                    onUpdatePlayer?.({ avatar: newAvatar });
+                                    setShowHpAvatarSelection(false);
+                                },
+                                players.map(p => p.avatar), // Zeige bereits vergebene an
+                                HP_AVATAR_IMAGES,
+                                true, // Large Mode
+                                true // Hide Labels
+                            )}
+                        </div>
+                   )}
+                </div>
+             </div>
+          </div>
+      )}
+
       <div className="text-center space-y-2 mb-8">
         <h1 className="text-3xl font-extrabold text-white font-serif">Lobby</h1>
         {roomCode && (
@@ -346,11 +396,17 @@ export const Lobby: React.FC<LobbyProps> = ({
             <Card title="Dein Profil">
                  {currentPlayer && onUpdatePlayer && (
                     <div className="">
+                        {/* 
+                            LOGIC CHANGE: 
+                            - HP Mode: Immer HP Bilder.
+                            - Host: Alle Monster Bilder.
+                            - Normaler Spieler: Nur die 9 zufälligen (randomAvatars), die beim Joinen generiert wurden.
+                        */}
                         {renderAvatarPicker(
                         currentPlayer.avatar, 
                         (newColor) => onUpdatePlayer({ avatar: newColor }), 
                         players.map(p => p.avatar),
-                        AVATAR_IMAGES,
+                        isHPMode ? HP_AVATAR_IMAGES : (isHost ? AVATAR_IMAGES : randomAvatars), 
                         false 
                         )}
                     </div>
@@ -393,7 +449,13 @@ export const Lobby: React.FC<LobbyProps> = ({
 
                         {/* Harry Potter Modus Toggle */}
                         <div 
-                        onClick={toggleHP}
+                        onClick={() => {
+                            const newMode = !isHPMode;
+                            setIsHPMode(newMode);
+                            onToggleHPMode?.(newMode);
+                            // Wenn Host einschaltet, öffnet sich bei ihm (und anderen) das Fenster
+                            if (newMode) setShowHpAvatarSelection(true);
+                        }}
                         className={`
                             cursor-pointer p-3 rounded-xl border transition-all flex items-center justify-between
                             ${isHPMode ? 'bg-amber-900/40 border-amber-400' : 'bg-white/5 border-white/10 hover:bg-white/10'}

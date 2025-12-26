@@ -9,7 +9,60 @@ export const CATEGORIES = [
   { id: 'jobs', name: 'Kuriose Berufe', icon: 'Briefcase' }
 ];
 
-export const HP_QUESTIONS = [
+export const HP_QUESTIONS_EASY = [
+    { q: "Was bewirkt der Zauberspruch 'Alohomora'?", a: "Er öffnet verschlossene Türen und Fenster", book: "Harry Potter und der Stein der Weisen", info: "Einer der ersten Sprüche, die Hermine im ersten Teil anwendet." },
+    { q: "Was bewirkt der Zauberspruch 'Lumos'?", a: "Er erzeugt Licht an der Zauberstabspitze", book: "Harry Potter und der Gefangene von Askaban", info: "Das Gegenteil dieses Zauberspruchs ist 'Nox'." },
+    { q: "Was bewirkt der Zauberspruch 'Wingardium Leviosa'?", a: "Er lässt Gegenstände schweben", book: "Harry Potter und der Stein der Weisen", info: "Wichtig ist die Aussprache: Levi-O-sa, nicht Levio-SA!" },
+    { q: "Was bewirkt der Zauberspruch 'Expelliarmus'?", a: "Er entwaffnet den Gegner", book: "Harry Potter und die Kammer des Schreckens", info: "Harry Potters Signatur-Zauberspruch, den er auch gegen Voldemort einsetzt." },
+    { q: "Was bewirkt der Zauberspruch 'Accio'?", a: "Er ruft Gegenstände zum Zauberer herbei", book: "Harry Potter und der Feuerkelch", info: "Harry nutzte ihn, um seinen Besen im Trimagischen Turnier zu rufen." },
+    { q: "Was bewirkt der Zauberspruch 'Expecto Patronum'?", a: "Er erschafft einen Schutzgeist gegen Dementoren", book: "Harry Potter und der Gefangene von Askaban", info: "Die Form des Patronus ist bei jedem Zauberer einzigartig (z.B. Hirsch bei Harry)." },
+    { q: "Was bewirkt der Fluch 'Avada Kedavra'?", a: "Er tötet das Opfer sofort und schmerzlos", book: "Harry Potter und der Feuerkelch", info: "Einer der drei Unverzeihlichen Flüche. Man erkennt ihn am grünen Lichtblitz." },
+    { q: "Was bewirkt der Fluch 'Crucio'?", a: "Er fügt dem Opfer unerträgliche Schmerzen zu", book: "Harry Potter und der Feuerkelch", info: "Wurde benutzt, um Neville Longbottoms Eltern in den Wahnsinn zu treiben." },
+    { q: "Was bewirkt der Fluch 'Imperio'?", a: "Er erlaubt die völlige Kontrolle über das Opfer", book: "Harry Potter und der Feuerkelch", info: "Viele Todesser behaupteten nach Voldemorts Fall, unter diesem Fluch gestanden zu haben." },
+    { q: "Was bewirkt der Zauberspruch 'Reparo'?", a: "Er repariert zerbrochene Gegenstände", book: "Harry Potter und der Stein der Weisen", info: "Hermine repariert damit Harrys Brille im Hogwartsexpress." },
+    { q: "Was bewirkt der Zauberspruch 'Riddikulus'?", a: "Er macht einen Irrwicht lächerlich", book: "Harry Potter und der Gefangene von Askaban", info: "Man muss dabei an etwas Lustiges denken, um die Angst zu besiegen." },
+    { q: "Was bewirkt der Zauberspruch 'Obliviate' (Amnesia)?", a: "Er löscht oder verändert das Gedächtnis", book: "Harry Potter und die Kammer des Schreckens", info: "Gilderoy Lockhart wollte ihn gegen Harry und Ron nutzen, traf aber sich selbst." },
+    { q: "Was bewirkt der Zauberspruch 'Sectumsempra'?", a: "Er fügt dem Gegner tiefe Schnittwunden zu", book: "Harry Potter und der Halbblutprinz", info: "Erfunden von Severus Snape. Harry wendet ihn gegen Draco Malfoy an." },
+    { q: "Was bewirkt der Zauberspruch 'Stupor' (Stupefy)?", a: "Er schockt und betäubt den Gegner", book: "Harry Potter und der Feuerkelch", info: "Der Standard-Kampfzauber der Auroren und Dumbledores Armee." },
+    { q: "Was bewirkt der Zauberspruch 'Petrificus Totalus'?", a: "Er versteinert den Körper des Opfers komplett", book: "Harry Potter und der Stein der Weisen", info: "Hermine wendet ihn gegen Neville an, als dieser sie aufhalten will." },
+    { q: "Was ist ein 'Muggel'?", a: "Ein Mensch ohne magische Fähigkeiten", book: "Harry Potter und der Stein der Weisen", info: "In Amerika werden sie 'No-Maj' genannt." },
+    { q: "Was ist ein 'Squib'?", a: "Ein Kind von Zauberern, das keine Magie besitzt", book: "Harry Potter und die Kammer des Schreckens", info: "Argus Filch, der Hausmeister von Hogwarts, ist ein Squib." },
+    { q: "Was beendet ein Quidditch-Spiel sofort?", a: "Das Fangen des Goldenen Schnatzes", book: "Harry Potter und der Stein der Weisen", info: "Es bringt der Mannschaft außerdem 150 Punkte." },
+    { q: "Was zeigt die 'Karte des Rumtreibers'?", a: "Den Aufenthaltsort aller Personen in Hogwarts", book: "Harry Potter und der Gefangene von Askaban", info: "Sie wurde von Moony, Wurmschwanz, Tatze und Krone erstellt." },
+    { q: "Was macht ein 'Heuler'?", a: "Er schreit eine Nachricht mit der Stimme des Absenders", book: "Harry Potter und die Kammer des Schreckens", info: "Ron erhält einen von seiner Mutter, nachdem er das fliegende Auto gestohlen hat." },
+    { q: "Was ist ein 'Portschlüssel'?", a: "Ein Gegenstand, der Personen an einen anderen Ort teleportiert", book: "Harry Potter und der Feuerkelch", info: "Oft unscheinbare Dinge wie alte Stiefel, die zu einer festen Zeit aktiviert werden." },
+    { q: "Was saugen Dementoren ihren Opfern aus?", a: "Alle glücklichen Erinnerungen und Gefühle", book: "Harry Potter und der Gefangene von Askaban", info: "Ihr 'Kuss' saugt dem Opfer die Seele aus." },
+    { q: "Was ist ein 'Hippogreif'?", a: "Ein Wesen, halb Adler, halb Pferd", book: "Harry Potter und der Gefangene von Askaban", info: "Man muss sich verbeugen und warten, bis er sich auch verbeugt, bevor man sich nähert." },
+    { q: "Wer kann Thestrale sehen?", a: "Menschen, die den Tod gesehen und verstanden haben", book: "Harry Potter und der Orden des Phönix", info: "Sie ziehen die Kutschen von Hogwarts, wirken auf andere aber unsichtbar." },
+    { q: "Was passiert, wenn man einem Basilisken direkt in die Augen schaut?", a: "Man stirbt sofort", book: "Harry Potter und die Kammer des Schreckens", info: "Sieht man ihn nur indirekt (z.B. Spiegel), wird man versteinert." },
+    { q: "Was passiert mit einem Phönix, wenn er stirbt?", a: "Er geht in Flammen auf und wird aus der Asche neu geboren", book: "Harry Potter und die Kammer des Schreckens", info: "Phönix-Tränen können zudem tödliche Wunden heilen." },
+    { q: "Was bewirkt der Schrei einer ausgewachsenen Alraune?", a: "Er ist tödlich für jeden, der ihn hört", book: "Harry Potter und die Kammer des Schreckens", info: "Der Schrei von jungen Alraunen führt lediglich zur Bewusstlosigkeit." },
+    { q: "Was bewirkt der 'Vielsaft-Trank'?", a: "Man nimmt für eine Stunde das Aussehen einer anderen Person an", book: "Harry Potter und die Kammer des Schreckens", info: "Man benötigt dafür ein Stück (z.B. Haar) der Person, in die man sich verwandeln will." },
+    { q: "Was ist 'Felix Felicis'?", a: "Ein Trank, der dem Trinker pures Glück verleiht", book: "Harry Potter und der Halbblutprinz", info: "Harry nutzt ihn, um Slughorn die Erinnerung über Horkruxe zu entlocken." },
+    { q: "Was ist 'Amortentia'?", a: "Der stärkste Liebestrank der Welt", book: "Harry Potter und der Halbblutprinz", info: "Er erzeugt keine echte Liebe, sondern nur obsessive Besessenheit." },
+    { q: "Was ist 'Veritaserum'?", a: "Ein Trank, der den Trinker zwingt, die Wahrheit zu sagen", book: "Harry Potter und der Feuerkelch", info: "Es ist im Unterricht und bei den meisten Gerichtsverhandlungen streng reguliert." },
+    { q: "Was ist ein 'Horkrux'?", a: "Ein Objekt, in dem ein Teil einer Seele versteckt ist", book: "Harry Potter und der Halbblutprinz", info: "Um einen Horkrux zu erschaffen, muss man einen Mord begehen." },
+    { q: "Was kann der 'Stein der Weisen' herstellen?", a: "Das Elixier des Lebens und Gold", book: "Harry Potter und der Stein der Weisen", info: "Er wurde von Nicolas Flamel erschaffen." },
+    { q: "Was ist die Aufgabe des 'Sprechenden Huts'?", a: "Er teilt die Schüler in ihre Häuser ein", book: "Harry Potter und der Stein der Weisen", info: "Die Häuser sind Gryffindor, Hufflepuff, Ravenclaw und Slytherin." },
+    { q: "Was ist der 'Honigtopf'?", a: "Ein berühmter Süßwarenladen in Hogsmeade", book: "Harry Potter und der Gefangene von Askaban", info: "Hogwarts-Schüler decken sich dort mit Schokofürschen und Bertie Botts Bohnen ein." },
+    { q: "Was ist 'Ollivanders'?", a: "Ein Geschäft für Zauberstäbe in der Winkelgasse", book: "Harry Potter und der Stein der Weisen", info: "Ollivander sagt: 'Der Zauberstab sucht sich den Zauberer aus'." },
+    { q: "Was ist 'Gringotts'?", a: "Die Zaubererbank, geführt von Kobolden", book: "Harry Potter und der Stein der Weisen", info: "Sie gilt als einer der sichersten Orte der magischen Welt, außer Hogwarts." },
+    { q: "Was ist 'Askaban'?", a: "Das Gefängnis für Zauberer", book: "Harry Potter und der Gefangene von Askaban", info: "Es liegt auf einer Insel in der Nordsee und wird von Dementoren bewacht." },
+    { q: "Was ist Dobby?", a: "Ein Hauself", book: "Harry Potter und die Kammer des Schreckens", info: "Dobby wird frei, wenn sein Meister ihm ein Kleidungsstück schenkt (eine Socke)." },
+    { q: "Wer war 'Hedwig'?", a: "Harry Potters Schneeeule", book: "Harry Potter und der Stein der Weisen", info: "Sie wurde Harry von Hagrid zum 11. Geburtstag geschenkt." },
+    { q: "Wer ist 'Nagini'?", a: "Voldemorts riesige Schlange", book: "Harry Potter und der Feuerkelch", info: "Sie ist auch einer von Voldemorts Horkruxen." },
+    { q: "Wer war 'Krätze'?", a: "Rons Ratte, die eigentlich Peter Pettigrew war", book: "Harry Potter und der Gefangene von Askaban", info: "Pettigrew lebte 12 Jahre lang als Ratte bei den Weasleys." },
+    { q: "Wer ist 'Fluffy'?", a: "Ein riesiger dreiköpfiger Hund", book: "Harry Potter und der Stein der Weisen", info: "Er bewachte die Falltür zum Stein der Weisen. Musik lässt ihn einschlafen." },
+    { q: "Wer ist 'Aragog'?", a: "Eine riesige Spinne (Acromantula)", book: "Harry Potter und die Kammer des Schreckens", info: "Hagrid zog ihn auf. Aragog lebt im Verbotenen Wald." },
+    { q: "Wer ist 'Fawkes'?", a: "Dumbledores Phönix", book: "Harry Potter und die Kammer des Schreckens", info: "Seine Schwanzfedern sind in den Zauberstäben von Harry und Voldemort." },
+    { q: "Was ist der 'Spiegel Nerhegeb'?", a: "Ein Spiegel, der das tiefste Begehren des Herzens zeigt", book: "Harry Potter und der Stein der Weisen", info: "Liest man den Namen rückwärts, heißt er 'Begehren'." },
+    { q: "Was sind 'Bertie Botts Bohnen'?", a: "Süßigkeiten in jeder Geschmacksrichtung", book: "Harry Potter und der Stein der Weisen", info: "Es gibt gute Geschmäcker (Schoko), aber auch eklige (Ohrenschmalz, Erbrechen)." },
+    { q: "Wie öffnet man die Karte des Rumtreibers?", a: "Ich schwöre feierlich, ich bin ein Tunichtgut", book: "Harry Potter und der Gefangene von Askaban", info: "Zum Schließen sagt man 'Missetat begangen'." },
+    { q: "Was ist das 'Dunkle Mal'?", a: "Das Zeichen von Lord Voldemort und seinen Anhängern", book: "Harry Potter und der Feuerkelch", info: "Es zeigt einen Totenkopf mit einer Schlange, die aus dem Mund kommt." },
+    { q: "Was ist ein 'Irrwicht'?", a: "Ein Gestaltwandler, der die Form der größten Angst annimmt", book: "Harry Potter und der Gefangene von Askaban", info: "Niemand weiß, wie ein Irrwicht aussieht, wenn er alleine ist." }
+];
+
+export const HP_QUESTIONS_HARD = [
     { 
         q: "Was bewirkt der Zauberspruch 'Orchideous'?", 
         a: "Er lässt Blumen aus der Zauberstabspitze sprießen",
@@ -306,8 +359,12 @@ export const HP_QUESTIONS = [
     }
 ];
 
+// Combine both lists for the main export to maintain backward compatibility if needed, 
+// though manual selection is preferred in the app logic.
+export const HP_QUESTIONS = [...HP_QUESTIONS_HARD, ...HP_QUESTIONS_EASY];
+
 export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
-  harry_potter: HP_QUESTIONS,
+  harry_potter: HP_QUESTIONS_HARD, // Default to hard for backward compat
   words: [
     { q: "Was ist ein 'Aglet'?", a: "Plastikhülle am Ende des Schnürsenkels" },
     { q: "Was bezeichnet man als 'Philtrum'?", a: "Rinne zwischen Nase und Oberlippe" },
@@ -399,6 +456,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Was ist eine 'Glossophobie'?", a: "Angst vor öffentlichem Sprechen" }
   ],
   laws: [
+    // ... (Keep previous content, omitted for brevity as requested to only add)
     { q: "Was ist auf deutschen Autobahnen streng verboten?", a: "Anhalten wegen Benzinmangels" },
     { q: "Welches Geräusch ist in Schweizer Mietshäusern nach 22 Uhr oft verboten?", a: "Toilettenspülung betätigen" },
     { q: "Was darf man in Florida legalerweise nicht an eine Parkuhr binden?", a: "Einen Elefanten" },

@@ -34,7 +34,28 @@ export const AVATAR_IMAGES = [
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_13.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_14.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_15.jpg",
-  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_16.jpg"
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_16.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_17.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_18.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_19.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_20.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_21.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_22.jpg"
+];
+
+// Harry Potter Avatar URLs
+export const HP_AVATAR_IMAGES = [
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_01.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_02.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_03.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_04.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_05.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_06.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_07.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_08.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_09.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_10.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_11.jpg"
 ];
 
 export enum GamePhase {

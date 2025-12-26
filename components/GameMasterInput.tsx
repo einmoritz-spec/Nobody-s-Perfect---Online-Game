@@ -1,10 +1,11 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { Crown, CheckCircle2, HelpCircle, Dice5, BookOpen, Gavel, Sparkles, Globe, Megaphone, Briefcase, Wand2 } from 'lucide-react';
-import { QUESTIONS, CATEGORIES, HP_QUESTIONS } from '../questions';
+import { Crown, CheckCircle2, HelpCircle, Dice5, BookOpen, Gavel, Sparkles, Globe, Megaphone, Briefcase, Wand2, Star, Zap } from 'lucide-react';
+import { QUESTIONS, CATEGORIES, HP_QUESTIONS_EASY, HP_QUESTIONS_HARD } from '../questions';
 
 interface GameMasterInputProps {
   gameMaster: Player;
@@ -18,6 +19,7 @@ export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, on
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [gmFake, setGmFake] = useState('');
   const [category, setCategory] = useState(isHarryPotterMode ? 'harry_potter' : 'words');
+  const [hpDifficulty, setHpDifficulty] = useState<'easy' | 'hard'>('hard'); // Neu: Schwierigkeitsgrad
 
   // Wenn der Modus wechselt, Kategorie anpassen
   useEffect(() => {
@@ -29,8 +31,13 @@ export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, on
   }, [isHarryPotterMode]);
 
   const pickRandom = () => {
-    // Wenn HP Modus an ist, nutze HP_QUESTIONS
-    const pool = isHarryPotterMode ? HP_QUESTIONS : (QUESTIONS[category] || QUESTIONS.words);
+    let pool;
+    if (isHarryPotterMode) {
+        pool = hpDifficulty === 'easy' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
+    } else {
+        pool = QUESTIONS[category] || QUESTIONS.words;
+    }
+    
     const randomIdx = Math.floor(Math.random() * pool.length);
     const q = pool[randomIdx];
     setQuestion(q.q);
@@ -71,14 +78,34 @@ export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, on
                         <label className="text-sm font-medium text-purple-200 block text-center uppercase tracking-widest">Kategorie wählen</label>
                         
                         {isHarryPotterMode ? (
-                            <div className="flex justify-center">
-                                <button
-                                    type="button"
-                                    className="flex flex-col items-center p-4 rounded-xl border-2 bg-brand-accent border-brand-accent text-brand-dark shadow-lg scale-105"
-                                >
-                                    <Wand2 size={24} className="mb-2" />
-                                    <span className="text-xs font-bold uppercase text-center leading-tight">Magisches Wissen</span>
-                                </button>
+                            <div className="space-y-4">
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        className="flex flex-col items-center p-4 rounded-xl border-2 bg-brand-accent border-brand-accent text-brand-dark shadow-lg scale-105 cursor-default"
+                                    >
+                                        <Wand2 size={24} className="mb-2" />
+                                        <span className="text-xs font-bold uppercase text-center leading-tight">Magisches Wissen</span>
+                                    </button>
+                                </div>
+                                
+                                {/* Difficulty Toggle */}
+                                <div className="bg-white/5 p-1 rounded-xl flex gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHpDifficulty('easy')}
+                                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${hpDifficulty === 'easy' ? 'bg-green-500 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        <Star size={14} /> Einfach
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setHpDifficulty('hard')}
+                                        className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${hpDifficulty === 'hard' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        <Zap size={14} /> Schwer
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -108,7 +135,9 @@ export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, on
                         <div className="flex justify-center mt-4">
                             <Button type="button" onClick={pickRandom} variant="secondary" className="text-sm py-2 px-4 w-full">
                             <Dice5 size={18} className="mr-2 inline" /> 
-                            {isHarryPotterMode ? "Zufällige Zauber-Frage" : `Zufällige Frage (${CATEGORIES.find(c => c.id === category)?.name})`}
+                            {isHarryPotterMode 
+                                ? `Zufällige ${hpDifficulty === 'easy' ? 'leichte' : 'schwere'} Frage` 
+                                : `Zufällige Frage (${CATEGORIES.find(c => c.id === category)?.name})`}
                             </Button>
                         </div>
                     </div>

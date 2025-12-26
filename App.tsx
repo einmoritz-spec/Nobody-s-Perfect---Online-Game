@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_IMAGES, BotPersonality, GameMode, RoundHistory } from './types';
+import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_IMAGES, HP_AVATAR_IMAGES, BotPersonality, GameMode, RoundHistory } from './types';
 import { Lobby } from './components/Lobby';
 import { GameMasterInput } from './components/GameMasterInput';
 import { PlayerInput } from './components/PlayerInput';
@@ -13,7 +13,7 @@ import { Button } from './components/ui/Button';
 import { Peer, DataConnection } from 'peerjs';
 import { GoogleGenAI } from "@google/genai";
 import { BrainCircuit, Loader2, UserX, Settings, Users, Crown, Wand2, Sparkles, LogIn, LogOut, BookOpen, Lightbulb, Hourglass, Ghost, Eye, CheckCircle2, Timer, Play, X, HelpCircle, PenTool, Medal, Trophy, Plus, Minus } from 'lucide-react';
-import { CATEGORIES, QUESTIONS, HP_QUESTIONS } from './questions';
+import { CATEGORIES, QUESTIONS, HP_QUESTIONS_EASY, HP_QUESTIONS_HARD } from './questions';
 
 // --- HELPER ---
 function shuffle<T>(array: T[]): T[] {
@@ -139,11 +139,29 @@ const App: React.FC = () => {
   const botProcessingRef = useRef<boolean>(false);
   const botVotingRef = useRef<boolean>(false);
   const roastProcessingRef = useRef<boolean>(false);
+  
+  // Ref, um zu verhindern, dass die Lobby das HP Modal doppelt öffnet, wenn der State vom Server kommt
+  const prevHpModeRef = useRef(false);
+  // Wir müssen das Modal in Lobby.tsx triggern. Da wir hier nur Lobby rendern, können wir das über einen Key oder eine Ref lösen?
+  // Besser: Wir passen Lobby.tsx so an, dass es auf Prop-Änderungen reagiert. Das habe ich in der Lobby bereits angemerkt.
+  // Das Modal öffnet sich dort bei User-Interaktion (Toggle) oder wenn der State sich ändert?
+  // Der Request sagt: "wenn ich als host den harry potter modus einschalte, dass dann bei allen mitspielern ein fenster aufgeht"
+  // Das bedeutet, Lobby.tsx muss auf gameState.isHarryPotterMode reagieren.
 
   // Sync Ref mit State
   useEffect(() => {
+    // Check for HP Mode Transition for Clients
+    if (!isHost && gameState.isHarryPotterMode && !prevHpModeRef.current) {
+        // Triggered wenn HP Mode an geht. Die Lobby Komponente reagiert darauf via Prop oder internen Effekt.
+        // Wir müssen in Lobby.tsx sicherstellen, dass das Modal aufgeht.
+        // Da Lobby via Props gerendert wird, übergeben wir einfach `onToggleHPMode` weiter,
+        // aber das Popup muss intern in Lobby überwach werden. 
+        // Ich modifiziere Lobby gleich noch, um einen `useEffect` für `isHPMode` Prop zu haben.
+        // HIER ist nichts zu tun, außer den Ref zu updaten.
+    }
+    prevHpModeRef.current = !!gameState.isHarryPotterMode;
     gameStateRef.current = gameState;
-  }, [gameState]);
+  }, [gameState, isHost]);
 
   // SCROLL TO TOP ON PHASE CHANGE (Fix für Mobile Host)
   useEffect(() => {
@@ -625,7 +643,24 @@ const App: React.FC = () => {
         return { ...state, phase: GamePhase.FINAL_LEADERBOARD, history: [...state.history, historyEntry] };
       }
       case 'RESET_GAME': return { ...INITIAL_STATE, players: state.players.map(p => ({ ...p, score: 0 })), phase: GamePhase.LOBBY };
-      case 'ADD_BOT': return { ...state, players: [...state.players, { id: action.payload.botId, name: action.payload.name, avatar: action.payload.avatar, botPersonality: action.payload.personality, score: 0, isBot: true }] };
+      case 'ADD_BOT': {
+          // Check if HP Mode is active
+          let avatar = action.payload.avatar;
+          
+          if (state.isHarryPotterMode && !action.payload.botId.includes('TROLL')) {
+             // Pick an HP avatar that is not yet taken by anyone
+             const usedAvatars = state.players.map(p => p.avatar);
+             const available = HP_AVATAR_IMAGES.filter(img => !usedAvatars.includes(img));
+             if (available.length > 0) {
+                 avatar = available[Math.floor(Math.random() * available.length)];
+             } else {
+                 // Fallback: Pick random from HP pool even if duplicate
+                 avatar = HP_AVATAR_IMAGES[Math.floor(Math.random() * HP_AVATAR_IMAGES.length)];
+             }
+          }
+          
+          return { ...state, players: [...state.players, { id: action.payload.botId, name: action.payload.name, avatar: avatar, botPersonality: action.payload.personality, score: 0, isBot: true }] };
+      }
       case 'REVEAL_ANSWER': return { ...state, revealedAnswerIds: [...state.revealedAnswerIds, action.payload.answerId] };
       case 'SET_ROAST': return { ...state, roastData: action.payload };
       case 'SET_FINAL_ROAST': return { ...state, finalRoast: action.payload.text };
@@ -635,14 +670,33 @@ const App: React.FC = () => {
       case 'TOGGLE_TROLL_MODE': {
         if (action.payload.enable) {
             // HÄRTUNG: Verhindere Duplikate!
-            // Wenn der Heckler schon da ist, füge ihn nicht nochmal hinzu (wichtig bei schnellen Clicks oder Re-Renders)
             if (state.players.some(p => p.id === HECKLER_ID)) return state;
-            
             return { ...state, players: [...state.players, { id: HECKLER_ID, name: "Troll Torben", avatar: "https://robohash.org/Troll?set=set2", score: 0, isBot: true, isHeckler: true, botPersonality: 'troll' }] };
         }
         return { ...state, players: state.players.filter(p => !p.isHeckler) };
       }
-      case 'TOGGLE_HP_MODE': return { ...state, isHarryPotterMode: action.payload.enable };
+      case 'TOGGLE_HP_MODE': {
+          const enable = action.payload.enable;
+          let newPlayers = [...state.players];
+          
+          if (enable) {
+              // Wenn HP Modus aktiviert wird: Alle BOTS (außer Heckler) erhalten automatisch einen HP Avatar
+              const hpPool = [...HP_AVATAR_IMAGES].sort(() => 0.5 - Math.random()); // Shuffle pool
+              
+              let poolIndex = 0;
+              
+              newPlayers = newPlayers.map(p => {
+                  if (p.isBot && !p.isHeckler) {
+                      const newAvatar = hpPool[poolIndex % hpPool.length];
+                      poolIndex++;
+                      return { ...p, avatar: newAvatar };
+                  }
+                  return p;
+              });
+          }
+          
+          return { ...state, isHarryPotterMode: enable, players: newPlayers };
+      }
       case 'TOGGLE_RULES': return { ...state, showRules: action.payload.show };
       default: return state;
     }
@@ -656,8 +710,10 @@ const App: React.FC = () => {
 
     // Wenn HP Modus UND kein Troll: Nutze direkt den Pool, statt KI zu fragen
     if (isHP && personality !== 'troll') {
-       const pool = HP_QUESTIONS;
+       // Wähle Pool basierend auf Personality
+       const pool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
        const randomQ = pool[Math.floor(Math.random() * pool.length)];
+       
        setIsAiLoading(false);
        return { 
            question: randomQ.q, 
@@ -668,7 +724,14 @@ const App: React.FC = () => {
     
     // Fallback Funktion (für andere Modi oder Fehlerfall)
     const fallback = () => {
-      const pool = isHP ? HP_QUESTIONS : (QUESTIONS[cat.id] || QUESTIONS['words']);
+      // Wenn es ein HP Fallback ist, wähle basierend auf Personality den Pool
+      let pool: {q: string, a: string}[] = [];
+      if (isHP) {
+           pool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
+      } else {
+           pool = QUESTIONS[cat.id] || QUESTIONS['words'];
+      }
+      
       const randomQ = pool[Math.floor(Math.random() * pool.length)];
       return {
           question: randomQ.q,
@@ -1195,20 +1258,25 @@ const App: React.FC = () => {
                                 )}
                              </div>
                              
-                             {isHost && p.id !== localPlayerId && (
-                                <button 
-                                  onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if(window.confirm(`${p.name} wirklich aus dem Spiel entfernen?`)) {
-                                          dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } });
-                                      }
-                                  }}
-                                  className="relative z-20 p-2 ml-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
-                                  title="Spieler kicken"
-                                >
-                                   <UserX size={16} />
-                                </button>
+                             {isHost && (
+                                p.id !== localPlayerId ? (
+                                    <button 
+                                      onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if(window.confirm(`${p.name} wirklich aus dem Spiel entfernen?`)) {
+                                              dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } });
+                                          }
+                                      }}
+                                      className="relative z-20 p-2 ml-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
+                                      title="Spieler kicken"
+                                    >
+                                       <UserX size={16} />
+                                    </button>
+                                ) : (
+                                    // Spacer damit die Buttons ausgerichtet bleiben
+                                    <div className="w-[34px] ml-1" aria-hidden="true" />
+                                )
                              )}
                          </div>
                      </div>
@@ -1337,7 +1405,11 @@ const App: React.FC = () => {
         ? available[Math.floor(Math.random() * available.length)] 
         : `${personality === 'pro' ? 'Profi' : personality === 'beginner' ? 'Noob' : 'Bot'} ${Math.floor(Math.random() * 100)}`;
 
-    // NEW LOGIC: Random Avatar from Available
+    // Wenn wir in addBot sind und dispatch aufrufen, ist die eigentliche Logik für die Avatarauswahl im Reducer (ADD_BOT).
+    // Hier übergeben wir nur einen Dummy oder einen Fallback, der im Reducer ggf. überschrieben wird, wenn HP Mode an ist.
+    // Siehe Reducer: ADD_BOT Fall.
+    
+    // Default für "nicht HP Mode"
     const usedAvatars = gameState.players.map(pl => pl.avatar);
     const availableAvatars = AVATAR_IMAGES.filter(img => !usedAvatars.includes(img));
     
