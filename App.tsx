@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GamePhase, GameState, Player, Answer, NetworkAction, AVATAR_IMAGES, HP_AVATAR_IMAGES, BotPersonality, GameMode, RoundHistory } from './types';
 import { Lobby } from './components/Lobby';
@@ -142,23 +141,9 @@ const App: React.FC = () => {
   
   // Ref, um zu verhindern, dass die Lobby das HP Modal doppelt öffnet, wenn der State vom Server kommt
   const prevHpModeRef = useRef(false);
-  // Wir müssen das Modal in Lobby.tsx triggern. Da wir hier nur Lobby rendern, können wir das über einen Key oder eine Ref lösen?
-  // Besser: Wir passen Lobby.tsx so an, dass es auf Prop-Änderungen reagiert. Das habe ich in der Lobby bereits angemerkt.
-  // Das Modal öffnet sich dort bei User-Interaktion (Toggle) oder wenn der State sich ändert?
-  // Der Request sagt: "wenn ich als host den harry potter modus einschalte, dass dann bei allen mitspielern ein fenster aufgeht"
-  // Das bedeutet, Lobby.tsx muss auf gameState.isHarryPotterMode reagieren.
 
   // Sync Ref mit State
   useEffect(() => {
-    // Check for HP Mode Transition for Clients
-    if (!isHost && gameState.isHarryPotterMode && !prevHpModeRef.current) {
-        // Triggered wenn HP Mode an geht. Die Lobby Komponente reagiert darauf via Prop oder internen Effekt.
-        // Wir müssen in Lobby.tsx sicherstellen, dass das Modal aufgeht.
-        // Da Lobby via Props gerendert wird, übergeben wir einfach `onToggleHPMode` weiter,
-        // aber das Popup muss intern in Lobby überwach werden. 
-        // Ich modifiziere Lobby gleich noch, um einen `useEffect` für `isHPMode` Prop zu haben.
-        // HIER ist nichts zu tun, außer den Ref zu updaten.
-    }
     prevHpModeRef.current = !!gameState.isHarryPotterMode;
     gameStateRef.current = gameState;
   }, [gameState, isHost]);
@@ -873,43 +858,48 @@ const App: React.FC = () => {
 
   // --- HECKLER / ROAST LOGIC ---
   const generateRoundRoast = async () => {
-      // WICHTIG: Nutze gameStateRef.current, um sicherzustellen, dass wir den aktuellsten State haben
-      // (auch wenn die Closure beim Erstellen des Effects alt war).
-      // Das behebt das Problem, dass der Heckler als "nicht da" angesehen wurde.
       const currentGameState = gameStateRef.current;
 
-      // 1. Abbrechen wenn bereits in Arbeit oder schon vorhanden
+      // Abbrechen wenn bereits in Arbeit oder schon vorhanden
       if (roastProcessingRef.current || currentGameState.roastData) return;
       
       const heckler = currentGameState.players.find(p => p.isHeckler);
-      if (!heckler) {
-          console.log("Roast abgebrochen: Kein Heckler gefunden.");
+      if (!heckler) return;
+
+      // 2. Suche Opfer: Zuerst nur Menschen
+      const votes = currentGameState.votes;
+      let victims: { player: Player, answer: Answer }[] = [];
+
+      const findVictims = (includeBots: boolean) => {
+          const found: { player: Player, answer: Answer }[] = [];
+          for (const p of currentGameState.players) {
+              if (p.isHeckler) continue; 
+              if (p.isBot && !includeBots) continue; 
+              
+              const votedAnswerId = votes[p.id];
+              if (!votedAnswerId) continue;
+
+              const votedAnswer = currentGameState.submittedAnswers.find(a => a.id === votedAnswerId);
+              if (votedAnswer && !votedAnswer.isCorrect) {
+                 found.push({ player: p, answer: votedAnswer });
+              }
+          }
+          return found;
+      };
+
+      victims = findVictims(false); // Erst nur Menschen
+
+      // Wenn keine menschlichen Opfer und wir schon in der Auflösung sind (alle Stimmen da), dann Bots nehmen
+      if (victims.length === 0 && currentGameState.phase === GamePhase.RESOLUTION) {
+          victims = findVictims(true); // Auch Bots
+      }
+
+      if (victims.length === 0) {
+          // Keine falschen Antworten gefunden -> Kein Roast möglich
           return;
       }
 
       roastProcessingRef.current = true;
-
-      // 2. Suche Opfer: Spieler, die für eine FALSCHE Antwort gestimmt haben
-      const victims: { player: Player, answer: Answer }[] = [];
-      const votes = currentGameState.votes;
-
-      for (const p of currentGameState.players) {
-          if (p.isHeckler) continue; 
-          if (p.isBot) continue; // WICHTIG: Keine Bots roasten
-          
-          const votedAnswerId = votes[p.id];
-          if (!votedAnswerId) continue;
-
-          const votedAnswer = currentGameState.submittedAnswers.find(a => a.id === votedAnswerId);
-          if (votedAnswer && !votedAnswer.isCorrect) {
-             victims.push({ player: p, answer: votedAnswer });
-          }
-      }
-
-      if (victims.length === 0) { 
-          roastProcessingRef.current = false; 
-          return; 
-      }
 
       // 3. Zufälliges Opfer auswählen
       const victim = victims[Math.floor(Math.random() * victims.length)];
@@ -917,6 +907,7 @@ const App: React.FC = () => {
       try {
           const ai = getAiInstance();
           const isHP = currentGameState.isHarryPotterMode;
+          // Prompt angepasst: Keine Trigger-Wörter
           const prompt = `Du bist "Troll Torben", ein zynischer Zuschauer beim Quiz${isHP ? ' im Harry Potter Universum' : ''}.
               Frage: "${currentGameState.question}".
               Spieler "${victim.player.name}" hat tatsächlich geglaubt, die Antwort sei: "${victim.answer.text}".
@@ -926,10 +917,12 @@ const App: React.FC = () => {
               - Der Fokus liegt darauf, wie lächerlich der Inhalt der Antwort "${victim.answer.text}" ist. 
               - Mache dich konkret darüber lustig, dass jemand so etwas Absurdes für wahr hält.
               - **WICHTIG:** Markiere die Pointe oder die härteste Beleidigung fett, indem du sie mit zwei Sternchen umschließt (z.B. **du Lauch**).
-              ${isHP ? '- Da wir im Harry Potter Modus sind, nutze gerne auch magische Anspielungen oder vergleiche ihn mit einem Muggel, Squib oder Schlammblut (vorsichtig).' : ''}`;
+              ${isHP ? '- Da wir im Harry Potter Modus sind, nutze gerne auch magische Anspielungen oder vergleiche ihn mit einem Muggel oder Squib.' : ''}`;
 
           const resp = await safeGenerateContent(ai, prompt);
-          const text = resp.text?.trim() || "Uff. Wie kann man das nur glauben?";
+          const text = resp.text?.trim();
+          
+          if (!text) throw new Error("Empty AI response");
           
           dispatch({ 
               type: 'SET_ROAST', 
@@ -941,7 +934,27 @@ const App: React.FC = () => {
               } 
           });
       } catch (e) {
-          console.error("Roast failed", e);
+          console.error("Roast generation failed, using fallback", e);
+          
+          // ROBUST FALLBACK
+          const fallbacks = [
+            `Uff, ${victim.player.name}, das war ja mal komplett **daneben**!`,
+            `Digga, ${victim.player.name}, glaubst du das wirklich? **Lost**.`,
+            `Hahaha, ${victim.player.name} hat den Köder geschluckt. **Peinlich**!`,
+            `Satz mit X, ${victim.player.name}. Das war wohl **nix**!`,
+            `Glaubst du auch an den Osterhasen, ${victim.player.name}? **Träum weiter**.`
+          ];
+          const fallbackText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+
+          dispatch({ 
+              type: 'SET_ROAST', 
+              payload: { 
+                  targetName: victim.player.name, 
+                  botName: heckler.name, 
+                  text: fallbackText,
+                  answerId: victim.answer.id 
+              } 
+          });
       } finally {
           roastProcessingRef.current = false;
       }
