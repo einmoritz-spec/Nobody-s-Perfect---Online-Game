@@ -59,7 +59,32 @@ export const HP_QUESTIONS_EASY = [
     { q: "Was sind 'Bertie Botts Bohnen'?", a: "Süßigkeiten in jeder Geschmacksrichtung", book: "Harry Potter und der Stein der Weisen", info: "Es gibt gute Geschmäcker (Schoko), aber auch eklige (Ohrenschmalz, Erbrechen)." },
     { q: "Wie öffnet man die Karte des Rumtreibers?", a: "Ich schwöre feierlich, ich bin ein Tunichtgut", book: "Harry Potter und der Gefangene von Askaban", info: "Zum Schließen sagt man 'Missetat begangen'." },
     { q: "Was ist das 'Dunkle Mal'?", a: "Das Zeichen von Lord Voldemort und seinen Anhängern", book: "Harry Potter und der Feuerkelch", info: "Es zeigt einen Totenkopf mit einer Schlange, die aus dem Mund kommt." },
-    { q: "Was ist ein 'Irrwicht'?", a: "Ein Gestaltwandler, der die Form der größten Angst annimmt", book: "Harry Potter und der Gefangene von Askaban", info: "Niemand weiß, wie ein Irrwicht aussieht, wenn er alleine ist." }
+    { q: "Was ist ein 'Irrwicht'?", a: "Ein Gestaltwandler, der die Form der größten Angst annimmt", book: "Harry Potter und der Gefangene von Askaban", info: "Niemand weiß, wie ein Irrwicht aussieht, wenn er alleine ist." },
+    { q: "Wie heißt die Katze von Argus Filch?", a: "Mrs. Norris", book: "Harry Potter und der Stein der Weisen", info: "Sie wird im zweiten Teil versteinert." },
+    { q: "Welches Tier ist Hermines Patronus?", a: "Ein Otter", book: "Harry Potter und der Orden des Phönix", info: "Der Otter ist J.K. Rowlings Lieblingstier." },
+    { q: "Welches Tier ist Harrys Patronus?", a: "Ein Hirsch", book: "Harry Potter und der Gefangene von Askaban", info: "Das gleiche Tier (Krone), in das sich sein Vater verwandeln konnte." },
+    { q: "Was ist der 'Fuchsbau'?", a: "Das Wohnhaus der Familie Weasley", book: "Harry Potter und die Kammer des Schreckens", info: "Es wird von Magie zusammengehalten und sieht etwas schief aus." },
+    { q: "Wie heißt Hagrids riesiger Halbbruder?", a: "Grawp", book: "Harry Potter und der Orden des Phönix", info: "Hagrid versteckt ihn im Verbotenen Wald." },
+    { q: "Wie heißt der Hippogreif in Teil 3?", a: "Seidenschnabel", book: "Harry Potter und der Gefangene von Askaban", info: "Er wird später von Sirius Black zur Flucht genutzt und 'Federspiel' genannt." },
+    { q: "Was hilft gegen den Schock nach einem Dementoren-Angriff?", a: "Schokolade essen", book: "Harry Potter und der Gefangene von Askaban", info: "Lupin gibt Harry im Zug sofort Schokolade." },
+    { q: "Wer ist der 'Halbblutprinz'?", a: "Severus Snape", book: "Harry Potter und der Halbblutprinz", info: "Seine Mutter hieß Prince und sein Vater war ein Muggel." },
+    { q: "Wie lautet Voldemorts bürgerlicher Name?", a: "Tom Vorlost Riddle", book: "Harry Potter und die Kammer des Schreckens", info: "Im Englischen: Tom Marvolo Riddle (Anagramm zu 'I am Lord Voldemort')." },
+    { q: "Welche Farbe hat Einhornblut?", a: "Silber", book: "Harry Potter und der Stein der Weisen", info: "Wer es trinkt, führt ein verfluchtes Leben." },
+    { q: "Was bewirkt 'Skele-Gro'?", a: "Es lässt Knochen nachwachsen", book: "Harry Potter und die Kammer des Schreckens", info: "Harry muss es nehmen, nachdem Lockhart ihm alle Knochen im Arm entfernt hat." },
+    { q: "Wie viele Bälle gibt es im Quidditch?", a: "Vier", book: "Harry Potter und der Stein der Weisen", info: "Einen Quaffel, zwei Klatscher und einen Goldenen Schnatz." },
+    { q: "Welche Position spielt Harry im Quidditch?", a: "Sucher", book: "Harry Potter und der Stein der Weisen", info: "Er ist der jüngste Sucher seit einem Jahrhundert." },
+    { q: "Wo befindet sich der Eingang zur Kammer des Schreckens?", a: "In der Mädchentoilette", book: "Harry Potter und die Kammer des Schreckens", info: "Genauer gesagt am Waschbecken, wo die Maulende Myrte spukt." },
+    { q: "In welches Tier verwandelt sich Professor McGonagall?", a: "In eine Katze", book: "Harry Potter und der Stein der Weisen", info: "Sie ist ein registrierter Animagus." },
+    { q: "Was schenkt Dumbledore Harry im ersten Jahr anonym zu Weihnachten?", a: "Den Tarnumhang seines Vaters", book: "Harry Potter und der Stein der Weisen", info: "Eines der drei Heiligtümer des Todes." },
+    { q: "Wie heißt Hagrids Drache?", a: "Norbert", book: "Harry Potter und der Stein der Weisen", info: "Später stellt sich heraus, dass es ein Weibchen ist (Norberta)." },
+    { q: "Was ist ein 'Knallrumpfigkröter'?", a: "Ein gefährliches, züchtetes Tierwesen von Hagrid", book: "Harry Potter und der Feuerkelch", info: "Sie sehen aus wie deformierte, panzerlose Hummer und können Feuer schießen." },
+    { q: "Wer bewacht das Porträt zum Gryffindor-Turm?", a: "Die Fette Dame", book: "Harry Potter und der Stein der Weisen", info: "Man benötigt das aktuelle Passwort, um einzutreten." },
+    { q: "Was ist 'Flohpulver'?", a: "Ein Pulver für Reisen durch Kamine", book: "Harry Potter und die Kammer des Schreckens", info: "Man muss den Zielort sehr deutlich aussprechen." },
+    { q: "Wer ist 'Krummbein'?", a: "Hermines Kater", book: "Harry Potter und der Gefangene von Askaban", info: "Er ist sehr intelligent und erkennt, dass Krätze keine echte Ratte ist." },
+    { q: "Was ist der 'Klitterer'?", a: "Eine Zeitschrift von Lunas Vater", book: "Harry Potter und der Orden des Phönix", info: "Viele halten sie für Unsinn, aber sie veröffentlicht Harrys Interview." },
+    { q: "Wie kommt man zum Gleis 9 3/4?", a: "Durch die Wand zwischen Gleis 9 und 10 laufen", book: "Harry Potter und der Stein der Weisen", info: "Es befindet sich im Bahnhof King's Cross in London." },
+    { q: "Was ist ein 'Muggelstämmiger'?", a: "Ein Zauberer mit Muggel-Eltern", book: "Harry Potter und die Kammer des Schreckens", info: "Früher oft abfällig als 'Schlammblut' bezeichnet." },
+    { q: "Wie viele Spieler hat eine Quidditch-Mannschaft?", a: "Sieben", book: "Harry Potter und der Stein der Weisen", info: "Drei Jäger, zwei Treiber, einen Hüter und einen Sucher." }
 ];
 
 export const HP_QUESTIONS_HARD = [
@@ -356,6 +381,156 @@ export const HP_QUESTIONS_HARD = [
         a: "Ein goldener Ochse, dessen Blut enorme Stärke verleiht",
         book: "Phantastische Tierwesen",
         info: "Das Blut ist extrem selten und auf dem Schwarzmarkt sehr teuer. Wer es trinkt, wird für kurze Zeit immens stark."
+    },
+    { 
+        q: "Was ist ein 'Runespoor'?", 
+        a: "Eine dreiköpfige Schlange",
+        book: "Phantastische Tierwesen",
+        info: "Jeder Kopf hat eine andere Funktion: Planer, Träumer und Kritiker. Der Kritiker wird oft von den anderen abgebissen."
+    },
+    { 
+        q: "Wer schrieb 'Die Geschichte der Magie'?", 
+        a: "Bathilda Bagshot",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Sie lebte in Godric's Hollow und kannte Dumbledores Familie gut."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Muffliato'?", 
+        a: "Er füllt die Ohren der Umgebung mit einem Summen",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Erfunden von Snape, damit man ungestört Gespräche führen kann, ohne belauscht zu werden."
+    },
+    { 
+        q: "Wie heißt die Frau der Riesenspinne Aragog?", 
+        a: "Mosag",
+        book: "Harry Potter und die Kammer des Schreckens",
+        info: "Hagrid fand sie für Aragog, damit sie eine Kolonie gründen konnten."
+    },
+    { 
+        q: "Was bewirkt 'Dianthuskraut' (Gillyweed)?", 
+        a: "Es lässt Kiemen und Schwimmhäute wachsen",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Harry nutzt es für die zweite Aufgabe des Trimagischen Turniers, nachdem Dobby (Buch) oder Neville (Film) es ihm gab."
+    },
+    { 
+        q: "Wer ist 'Wilkie Twycross'?", 
+        a: "Der Apparier-Lehrer von Hogwarts",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Er betont immer die drei G's: Ziel, Geleit, Wille (Destination, Determination, Deliberation)."
+    },
+    { 
+        q: "Was ist ein 'Bowtruckle'?", 
+        a: "Ein kleiner, zweigartiger Baumbewächter",
+        book: "Phantastische Tierwesen",
+        info: "Sie bewachen Bäume, deren Holz für Zauberstäbe geeignet ist. Man kann sie mit Kellerasseln ablenken."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Levicorpus'?", 
+        a: "Er hängt das Opfer an den Knöcheln kopfüber auf",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Ein non-verbaler Zauber von Snape. James Potter wendete ihn oft gegen Snape an."
+    },
+    { 
+        q: "Wer schmiedete das Schwert von Gryffindor?", 
+        a: "Ragnuk der Erste",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Er war ein berühmter Koboldkönig. Kobolde behaupten oft, Gryffindor habe es gestohlen."
+    },
+    { 
+        q: "Was ist ein 'Minimuff' (Pygmy Puff)?", 
+        a: "Ein kleiner, gezüchteter, flauschiger Puffskein",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Sie wurden von Fred und George Weasley gezüchtet und sind beliebte Haustiere (Ginny hat einen namens Arnold)."
+    },
+    { 
+        q: "Wofür steht 'B.ELFE.R.'?", 
+        a: "Bund für Elfenrechte",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Hermine gründete diese Organisation (im Original S.P.E.W.), um Hauselfen zu befreien."
+    },
+    { 
+        q: "Wie hieß der Hippogreif Seidenschnabel zu seiner Tarnung?", 
+        a: "Federspiel (Witherwings)",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Um ihn vor dem Ministerium zu verstecken, wurde er umbenannt, als er zu Sirius zurückkehrte."
+    },
+    { 
+        q: "Was ist der Kern des Elderstabs?", 
+        a: "Das Schwanzhaar eines Thestrals",
+        book: "Harry Potter Lore / J.K. Rowling",
+        info: "Eine Substanz, die nur von denen gehandhabt werden kann, die den Tod akzeptieren."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Aguamenti'?", 
+        a: "Er erzeugt einen Wasserstrahl aus dem Zauberstab",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Harry versucht damit, Dumbledore Wasser zu geben, als dieser den Trank in der Höhle getrunken hat."
+    },
+    { 
+        q: "Wie hieß die Hauselfe von Hepzibah Smith?", 
+        a: "Hokey",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Voldemort manipulierte ihre Erinnerung, sodass sie glaubte, sie habe ihre Herrin vergiftet."
+    },
+    { 
+        q: "Was ist ein 'Lethifold'?", 
+        a: "Ein lebendiges Leichentuch, das schlafende Menschen erstickt",
+        book: "Phantastische Tierwesen",
+        info: "Es ist extrem selten und kann nur mit einem Patronus abgewehrt werden."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Prior Incantato'?", 
+        a: "Er zwingt einen Zauberstab, seine letzten Zauber zu zeigen",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Dies geschah beim Priori Incantatem Effekt zwischen Harrys und Voldemorts Stäben."
+    },
+    { 
+        q: "Wer war 'Phineas Nigellus Black'?", 
+        a: "Der unbeliebteste Schulleiter in der Geschichte von Hogwarts",
+        book: "Harry Potter und der Orden des Phönix",
+        info: "Sein Porträt hängt in Dumbledores Büro und am Grimmauldplatz, was Nachrichtenübermittlung ermöglicht."
+    },
+    { 
+        q: "Was ist ein 'Demiguise'?", 
+        a: "Ein affenartiges Wesen, das sich unsichtbar machen kann",
+        book: "Phantastische Tierwesen",
+        info: "Sein Fell wird verwendet, um Tarnumhänge zu weben (die aber mit der Zeit ihre Wirkung verlieren)."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Confundo'?", 
+        a: "Er verwirrt das Opfer und macht es leicht beeinflussbar",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Hermine nutzt ihn bei Cormac McLaggen, damit Ron Hüter wird."
+    },
+    { 
+        q: "Wer sind die 'Peverell-Brüder'?", 
+        a: "Die ursprünglichen Besitzer der Heiligtümer des Todes",
+        book: "Harry Potter und die Heiligtümer des Todes",
+        info: "Antioch (Stab), Cadmus (Stein) und Ignotus (Umhang)."
+    },
+    { 
+        q: "Was ist ein 'Okamy'?", 
+        a: "Eine gefiederte Schlange, die ihre Größe an den Raum anpasst",
+        book: "Phantastische Tierwesen",
+        info: "Diese Fähigkeit nennt man 'Choranaptyxis'. Ihre Eierschalen bestehen aus reinem Silber."
+    },
+    { 
+        q: "Was bewirkt der Zauberspruch 'Diffindo'?", 
+        a: "Er zerschneidet oder trennt Objekte präzise",
+        book: "Harry Potter und der Feuerkelch",
+        info: "Harry nutzt ihn, um Rons Anzugmanschetten zu trennen, und später, um das Eis im gefrorenen See zu brechen."
+    },
+    { 
+        q: "Wer war 'Fenrir Greyback'?", 
+        a: "Ein brutaler Werwolf, der Kinder bevorzugt beißt",
+        book: "Harry Potter und der Halbblutprinz",
+        info: "Er biss Remus Lupin als Kind. Er versucht, so viele Menschen wie möglich zu infizieren."
+    },
+    { 
+        q: "Was ist ein 'Graphorn'?", 
+        a: "Ein großes, aggressives Wesen mit grauer Haut und zwei Hörnern",
+        book: "Phantastische Tierwesen",
+        info: "Seine Haut ist dicker als Drachenhaut und wehrt die meisten Zauber ab. Man sieht sie auf Gebirgen."
     }
 ];
 
@@ -366,6 +541,7 @@ export const HP_QUESTIONS = [...HP_QUESTIONS_HARD, ...HP_QUESTIONS_EASY];
 export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
   harry_potter: HP_QUESTIONS_HARD, // Default to hard for backward compat
   words: [
+    // ... existing words
     { q: "Was ist ein 'Aglet'?", a: "Plastikhülle am Ende des Schnürsenkels" },
     { q: "Was bezeichnet man als 'Philtrum'?", a: "Rinne zwischen Nase und Oberlippe" },
     { q: "Was ist ein 'Zarf'?", a: "Papphalter für heiße Kaffeebecher" },
@@ -456,7 +632,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Was ist eine 'Glossophobie'?", a: "Angst vor öffentlichem Sprechen" }
   ],
   laws: [
-    // ... (Keep previous content, omitted for brevity as requested to only add)
+    // ... existing laws
     { q: "Was ist auf deutschen Autobahnen streng verboten?", a: "Anhalten wegen Benzinmangels" },
     { q: "Welches Geräusch ist in Schweizer Mietshäusern nach 22 Uhr oft verboten?", a: "Toilettenspülung betätigen" },
     { q: "Was darf man in Florida legalerweise nicht an eine Parkuhr binden?", a: "Einen Elefanten" },
@@ -495,6 +671,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Was ist in San Francisco verboten, mit Tauben zu tun?", a: "Füttern" }
   ],
   facts: [
+    // ... existing facts
     { q: "Was war der ursprüngliche Verwendungszweck von Luftpolsterfolie?", a: "Sie sollte eine 3D-Tapete sein" },
     { q: "Was passiert mit dem Eiffelturm im Sommer?", a: "Er wird bis zu 15 cm größer" },
     { q: "Was ist historisch überraschend an der Universität Oxford?", a: "Sie ist älter als das Aztekenreich" },
@@ -568,6 +745,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Was können Schweine anatomisch nicht tun?", a: "In den Himmel schauen" }
   ],
   traditions: [
+    // ... existing traditions
     { q: "Was machen die Bewohner von Castrillo de Murcia mit ihren Neugeborenen?", a: "Männer springen über sie" },
     { q: "Was ist der Zweck des 'Affen-Buffets' in Lopburi?", a: "Affen werden mit Obst gefüttert" },
     { q: "Was passiert in Schottland beim 'Blackening' vor einer Hochzeit?", a: "Paar wird mit Dreck beworfen" },
@@ -612,6 +790,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Was ist 'Antzar Eguna' im Baskenland?", a: "Wettbewerb, bei dem man einer Gans (heute Gummi) den Kopf abreißt" }
   ],
   slogans: [
+    // ... existing slogans
     { q: "Wie lautet der Slogan von: Ricola?", a: "Wer hat's erfunden" },
     { q: "Wie lautet der Slogan von: Alpecin?", a: "Doping für die Haare" },
     { q: "Wie lautet der Slogan von: Skoda?", a: "Simply Clever" },
@@ -760,6 +939,7 @@ export const QUESTIONS: Record<string, { q: string, a: string }[]> = {
     { q: "Wie lautet der Slogan von: Werther's Echte?", a: "Weil du etwas Besonderes bist" }
   ],
   jobs: [
+    // ... existing jobs
     { q: "Was ist ein 'Zeidler'?", a: "Ein mittelalterlicher Wald-Imker, der Honig von wilden Bienen sammelte" },
     { q: "Was macht ein 'Oshiya'?", a: "Er drückt in Japan Fahrgäste professionell in überfüllte U-Bahnen" },
     { q: "Was ist ein 'Pechsieder'?", a: "Ein historischer Handwerker, der aus Nadelholz Teer und Pech herstellte" },
