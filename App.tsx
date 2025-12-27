@@ -148,6 +148,17 @@ const App: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState, isHost]);
 
+  // IMAGE PRELOADING (Damit Avatare schneller da sind)
+  useEffect(() => {
+    const preloadImages = (urls: string[]) => {
+      urls.forEach(url => {
+        const img = new Image();
+        img.src = url;
+      });
+    };
+    preloadImages([...AVATAR_IMAGES, ...HP_AVATAR_IMAGES]);
+  }, []);
+
   // SCROLL TO TOP ON PHASE CHANGE (Fix für Mobile Host)
   useEffect(() => {
     // Timeout ist wichtig, damit React erst das Layout rendern kann, bevor gescrollt wird

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 
 interface AvatarProps {
   avatar: string; // Hex-Code ODER Bild-URL
@@ -9,6 +9,8 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ avatar, name = '?', size = 'md', className = '' }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',
     sm: 'w-10 h-10 text-[12px]',
@@ -25,7 +27,14 @@ export const Avatar: React.FC<AvatarProps> = ({ avatar, name = '?', size = 'md',
   if (isImage) {
     return (
       <div className={baseClasses}>
-        <img src={avatar} alt={name} className="w-full h-full object-cover" />
+        <img 
+          src={avatar} 
+          alt={name} 
+          className={`w-full h-full object-cover transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
+          onLoad={() => setIsLoaded(true)}
+          loading="eager"
+        />
+        {!isLoaded && <div className="absolute inset-0 bg-white/10 animate-pulse" />}
       </div>
     );
   }
