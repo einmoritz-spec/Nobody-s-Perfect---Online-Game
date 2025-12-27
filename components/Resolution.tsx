@@ -1,13 +1,13 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, Answer, PlayerId, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles, BookOpen, Scroll, X } from 'lucide-react';
+import { Trophy, ArrowRight, Check, Skull, Medal, Flag, Crown, MousePointer2, Lock, Sparkles, BookOpen, Scroll, X, Save, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { HP_QUESTIONS_EASY, HP_QUESTIONS_HARD } from '../questions';
+import html2canvas from 'html2canvas';
 
 interface ResolutionProps {
   localPlayerId: string | null;
@@ -59,9 +59,11 @@ export const Resolution: React.FC<ResolutionProps> = ({
 }) => {
   const answerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const roastRef = useRef<HTMLDivElement | null>(null);
+  const roastContentRef = useRef<HTMLDivElement | null>(null); // Ref speziell für den Inhalt der Sprechblase
   
   // State für das Wegklicken des Popups
   const [isFactDismissed, setIsFactDismissed] = useState(false);
+  const [isSavingRoast, setIsSavingRoast] = useState(false);
 
   // Helper für Darstellung
   const botRoaster = roastData ? players.find(p => p.name === roastData.botName) : null;
@@ -157,6 +159,27 @@ export const Resolution: React.FC<ResolutionProps> = ({
     }
   };
 
+  const handleSaveRoast = async () => {
+    if (!roastRef.current || isSavingRoast) return;
+    setIsSavingRoast(true);
+    try {
+        const canvas = await html2canvas(roastRef.current, {
+            backgroundColor: null, // Transparent background
+            scale: 2, // Better resolution
+            useCORS: true
+        });
+        const link = document.createElement('a');
+        link.download = `roast-${roastData?.targetName || 'troll'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (e) {
+        console.error("Screenshot failed", e);
+        alert("Speichern fehlgeschlagen.");
+    } finally {
+        setIsSavingRoast(false);
+    }
+  };
+
   const showBigRevealButton = !allRevealed && canControlFlow;
 
   // --- AUTO SCROLL EFFECTS ---
@@ -225,16 +248,29 @@ export const Resolution: React.FC<ResolutionProps> = ({
       </div>
 
       {showRoast && botRoaster && (
-          <div ref={roastRef} className="my-6 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-2xl mx-auto">
+          <div ref={roastRef} className="my-6 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-2xl mx-auto p-2">
             <div className="flex-shrink-0 pt-2">
                 <Avatar avatar={botRoaster.avatar} name={botRoaster.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
             
             {/* Sprechblase */}
-            <div className="relative bg-white text-brand-dark p-5 rounded-2xl shadow-2xl flex-1 border-2 border-pink-500 before:content-[''] before:absolute before:top-6 before:-left-3 before:w-0 before:h-0 before:border-t-[10px] before:border-t-transparent before:border-r-[12px] before:border-r-pink-500 before:border-b-[10px] before:border-b-transparent">
+            <div 
+                ref={roastContentRef}
+                className="relative bg-white text-brand-dark p-5 rounded-2xl shadow-2xl flex-1 border-2 border-pink-500 before:content-[''] before:absolute before:top-6 before:-left-3 before:w-0 before:h-0 before:border-t-[10px] before:border-t-transparent before:border-r-[12px] before:border-r-pink-500 before:border-b-[10px] before:border-b-transparent"
+            >
                 <div className="absolute top-6 -left-[9px] w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-white border-b-[8px] border-b-transparent z-10"></div>
                 
-                <p className="font-bold text-xs mb-2 text-pink-600 uppercase tracking-wide flex items-center gap-2">
+                {/* Save Button absolute in top right of bubble */}
+                <button 
+                    onClick={handleSaveRoast}
+                    className="absolute top-2 right-2 p-1.5 bg-gray-100 hover:bg-pink-100 text-pink-500 rounded-full transition-colors shadow-sm"
+                    title="Als Bild speichern"
+                    disabled={isSavingRoast}
+                >
+                    {isSavingRoast ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                </button>
+
+                <p className="font-bold text-xs mb-2 text-pink-600 uppercase tracking-wide flex items-center gap-2 pr-6">
                   <span className="bg-pink-100 px-2 py-0.5 rounded-full">{botRoaster.name}</span>
                    roastet {roastData!.targetName}
                 </p>

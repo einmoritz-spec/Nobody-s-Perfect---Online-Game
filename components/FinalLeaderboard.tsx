@@ -1,10 +1,11 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Player, RoundHistory, GameMode } from '../types';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
-import { Trophy, RotateCcw, Crown, Ghost } from 'lucide-react';
+import { Trophy, RotateCcw, Crown, Ghost, Save, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import html2canvas from 'html2canvas';
 
 interface FinalLeaderboardProps {
   players: Player[];
@@ -16,6 +17,11 @@ interface FinalLeaderboardProps {
 }
 
 export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onReset, isHost, finalRoast, history, gameMode }) => {
+  const leaderboardRef = useRef<HTMLDivElement | null>(null);
+  const roastRef = useRef<HTMLDivElement | null>(null);
+  const [isSavingBoard, setIsSavingBoard] = useState(false);
+  const [isSavingRoast, setIsSavingRoast] = useState(false);
+
   // WICHTIG: Troll Torben (Heckler) komplett aus der Rangliste entfernen
   // WICHTIG: Im Host-Modus den Host aus der Rangliste entfernen
   const participants = players.filter(p => {
@@ -57,9 +63,31 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
     }());
   }, []);
 
+  const capture = async (element: HTMLElement | null, filename: string, setSaving: (b: boolean) => void, transparent = false) => {
+      if (!element || setSaving === undefined) return;
+      setSaving(true);
+      try {
+          const canvas = await html2canvas(element, {
+              backgroundColor: transparent ? null : '#2e1065', // Brand dark background for board, transparent for roast
+              scale: 2,
+              useCORS: true,
+              logging: false
+          });
+          const link = document.createElement('a');
+          link.download = filename;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+      } catch (e) {
+          console.error("Save failed", e);
+          alert("Speichern fehlgeschlagen.");
+      } finally {
+          setSaving(false);
+      }
+  };
+
   return (
     <div className="max-w-6xl mx-auto animate-fade-in pt-10 pb-20 px-4">
-      <div className="text-center mb-10 md:mb-16 space-y-4">
+      <div className="text-center mb-10 md:mb-16 space-y-4 relative">
         <div className="flex justify-center">
           <div className="relative">
             <Trophy size={80} className="text-brand-accent animate-bounce-short" />
@@ -69,12 +97,25 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
           Die Sieger
         </h1>
         <p className="text-purple-200 text-lg md:text-xl font-medium italic">Niemand ist perfekt - aber ihr wart nah dran!</p>
+        
+        {/* Save Board Button */}
+        <div className="flex justify-center mt-4">
+            <Button 
+                variant="secondary" 
+                onClick={() => capture(leaderboardRef.current, 'siegerehrung.png', setIsSavingBoard, false)}
+                className="text-xs py-2 px-4 flex items-center gap-2"
+                disabled={isSavingBoard}
+            >
+                {isSavingBoard ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Übersicht speichern
+            </Button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row items-start gap-8 md:gap-12">
         
-        {/* LEADERBOARD BEREICH */}
-        <div className="flex-1 w-full order-2 lg:order-1">
+        {/* LEADERBOARD BEREICH (Ref Wrapper) */}
+        <div className="flex-1 w-full order-2 lg:order-1 p-4 rounded-3xl" ref={leaderboardRef}>
           {/* Podium - Responsive Layout - Added mt-6 md:mt-16 to prevent crown overlap */}
           <div className="grid grid-cols-2 md:flex md:flex-row md:items-end md:justify-center gap-4 md:gap-0 mb-16 md:h-96 mt-6 md:mt-16">
             
@@ -85,7 +126,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                   <div className="flex justify-center mb-2">
                      <Avatar avatar={second.avatar} name={second.name} size="xl" className="border-4 border-gray-300 shadow-lg" />
                   </div>
-                  <p className="font-bold text-lg mt-1 truncate max-w-[150px]">{second.name}</p>
+                  <p className="font-bold text-lg mt-1 truncate max-w-[150px] text-white">{second.name}</p>
                   <p className="text-sm text-purple-300 font-bold">{second.score} Pkt.</p>
                 </div>
                 <div className="w-full bg-gradient-to-t from-gray-700 to-gray-500 rounded-t-2xl h-24 md:h-32 flex items-center justify-center border-t-4 border-gray-400 shadow-lg">
@@ -118,7 +159,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                   <div className="flex justify-center mb-2">
                      <Avatar avatar={third.avatar} name={third.name} size="xl" className="border-4 border-amber-600 shadow-lg" />
                   </div>
-                  <p className="font-bold text-lg mt-1 truncate max-w-[150px]">{third.name}</p>
+                  <p className="font-bold text-lg mt-1 truncate max-w-[150px] text-white">{third.name}</p>
                   <p className="text-sm text-purple-300 font-bold">{third.score} Pkt.</p>
                 </div>
                 <div className="w-full bg-gradient-to-t from-amber-800 to-amber-600 rounded-t-2xl h-16 md:h-24 flex items-center justify-center border-t-4 border-amber-500 shadow-lg">
@@ -140,7 +181,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                        <Avatar avatar={p.avatar} name={p.name} size="sm" />
                        <span className="text-gray-300 font-medium">{p.name}</span>
                     </div>
-                    <span className="font-bold">{p.score} <span className="text-[10px] text-gray-500">Pkt.</span></span>
+                    <span className="font-bold text-white">{p.score} <span className="text-[10px] text-gray-500">Pkt.</span></span>
                   </div>
                 ))}
               </div>
@@ -150,7 +191,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
 
         {/* TROLL TORBEN SIDE PANEL */}
         {finalRoast && heckler && (
-          <div className="w-full lg:w-80 order-1 lg:order-2 flex-shrink-0 animate-fade-in-right lg:sticky lg:top-8" style={{ animationDelay: '800ms' }}>
+          <div className="w-full lg:w-80 order-1 lg:order-2 flex-shrink-0 animate-fade-in-right lg:sticky lg:top-8" style={{ animationDelay: '800ms' }} ref={roastRef}>
              <div className="relative bg-pink-900/40 border-2 border-pink-500 p-6 rounded-3xl shadow-[0_0_50px_rgba(236,72,153,0.3)] rotate-1 hover:rotate-0 transition-transform duration-500">
                <div className="absolute -top-10 left-1/2 -translate-x-1/2 lg:-left-6 lg:translate-x-0">
                  <div className="relative">
@@ -160,6 +201,17 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                    </div>
                  </div>
                </div>
+               
+                {/* Save Roast Button */}
+                <button 
+                    onClick={() => capture(roastRef.current, 'final-roast.png', setIsSavingRoast, true)}
+                    className="absolute top-2 right-2 p-1.5 bg-pink-900/50 hover:bg-pink-800 text-pink-300 rounded-full transition-colors border border-pink-500/30"
+                    title="Kommentar speichern"
+                    disabled={isSavingRoast}
+                >
+                    {isSavingRoast ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                </button>
+
                <div className="pt-24 lg:pt-16 pb-2 text-center lg:text-left">
                   <h3 className="font-bold text-pink-400 uppercase tracking-widest text-xs mb-3 flex items-center justify-center lg:justify-start gap-2 border-b border-pink-500/30 pb-2">
                      Kommentar von der Seitenlinie
