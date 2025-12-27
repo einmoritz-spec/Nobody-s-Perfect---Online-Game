@@ -92,6 +92,7 @@ const PEER_CONFIG = {
       { urls: 'stun:stun1.l.google.com:19302' },
     ],
   },
+  pingInterval: 5000, // Keep-alive attempts
 };
 
 const INITIAL_STATE: GameState = {
@@ -209,7 +210,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(SESSION_KEY);
     if (saved && !localPlayerId) {
       try {
-        const { id, roomCode: savedCode, name, avatar, isHost: wasHost } = JSON.parse(saved);
+        const { id, roomCode: savedCode, name, avatar, isHost: wasHost, isSuperAdmin } = JSON.parse(saved);
         if (wasHost) {
           const recovery = localStorage.getItem(STATE_RECOVERY_KEY);
           if (recovery) {
@@ -223,11 +224,11 @@ const App: React.FC = () => {
                   usedQuestions: state.usedQuestions || [] // Ensure backward compatibility
               };
               setGameState(safeState);
-              recreateHost(savedCode, id, name, avatar);
+              recreateHost(savedCode, id, name, avatar, isSuperAdmin);
               return;
             }
           }
-          createGame(name, avatar, savedCode, id);
+          createGame(name, avatar, isSuperAdmin, savedCode, id);
         } else {
           joinGame(name, savedCode, avatar, id);
         }
@@ -276,7 +277,7 @@ const App: React.FC = () => {
     }
   };
 
-  const createGame = (playerName: string, avatar: string, code?: string, existingId?: string) => {
+  const createGame = (playerName: string, avatar: string, isSuperAdmin: boolean, code?: string, existingId?: string) => {
     setConnectionStatus('connecting');
     const newCode = code || generateRoomCode();
     const hostId = existingId || Math.random().toString(36).substr(2, 9);
@@ -289,19 +290,32 @@ const App: React.FC = () => {
     
     peer.on('open', () => {
       setConnectionStatus('connected');
-      const p: Player = { id: hostId, name: playerName, score: 0, avatar, isHost: true };
+      const p: Player = { id: hostId, name: playerName, score: 0, avatar, isHost: true, isSuperAdmin };
       setGameState(prev => ({ ...prev, players: [p] }));
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: hostId, roomCode: newCode, name: playerName, avatar, isHost: true }));
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: hostId, roomCode: newCode, name: playerName, avatar, isHost: true, isSuperAdmin }));
     });
     
+    // Robustere Disconnect-Handler
     peer.on('disconnected', () => {
-        console.warn('Host disconnected from server. Reconnecting...');
-        peer.reconnect();
+        console.warn('Host disconnected from server. Attempting reconnect...');
+        setTimeout(() => {
+            if (peer && !peer.destroyed && peer.disconnected) {
+                peer.reconnect();
+            }
+        }, 1000);
     });
 
-    peer.on('error', (err) => {
+    peer.on('error', (err: any) => {
         console.error('Host Error:', err);
-        // Ignore fatal errors here if possible, rely on reconnect logic for network issues
+        // "Lost connection to server" handling
+        if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed' || err.message?.includes('Lost connection')) {
+             console.warn('Network/Server error. Attempting to reconnect...');
+             setTimeout(() => {
+                 if (peer && !peer.destroyed && peer.disconnected) {
+                     peer.reconnect();
+                 }
+             }, 2000);
+        }
     });
 
     peer.on('connection', (conn) => {
@@ -312,7 +326,7 @@ const App: React.FC = () => {
     });
   };
 
-  const recreateHost = (code: string, id: string, name: string, avatar: string) => {
+  const recreateHost = (code: string, id: string, name: string, avatar: string, isSuperAdmin: boolean = false) => {
     setConnectionStatus('connecting');
     setRoomCode(code);
     setLocalPlayerId(id);
@@ -324,10 +338,23 @@ const App: React.FC = () => {
     
     peer.on('disconnected', () => {
         console.warn('Host (recovered) disconnected from server. Reconnecting...');
-        peer.reconnect();
+        setTimeout(() => {
+            if (peer && !peer.destroyed && peer.disconnected) {
+                peer.reconnect();
+            }
+        }, 1000);
     });
 
-    peer.on('error', (err) => console.error('Recover Host Error:', err));
+    peer.on('error', (err: any) => {
+        console.error('Recover Host Error:', err);
+        if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed' || err.message?.includes('Lost connection')) {
+             setTimeout(() => {
+                 if (peer && !peer.destroyed && peer.disconnected) {
+                     peer.reconnect();
+                 }
+             }, 2000);
+        }
+    });
 
     peer.on('connection', (conn) => {
       connectionsRef.current.push(conn);
@@ -405,10 +432,14 @@ const App: React.FC = () => {
 
     peer.on('disconnected', () => {
         console.warn('Client disconnected from PeerServer. Reconnecting...');
-        peer.reconnect();
+        setTimeout(() => {
+            if (peer && !peer.destroyed && peer.disconnected) {
+                peer.reconnect();
+            }
+        }, 1000);
     });
 
-    peer.on('error', (err) => {
+    peer.on('error', (err: any) => {
         console.error('Client Peer Error:', err);
         // Wenn der Peer (Host) nicht verfügbar ist (z.B. Raum geschlossen), Session löschen
         if (err.type === 'peer-unavailable') {
@@ -416,7 +447,13 @@ const App: React.FC = () => {
             localStorage.removeItem(STATE_RECOVERY_KEY);
             alert("Raum nicht gefunden oder geschlossen. Du wirst zum Hauptmenü geleitet.");
             window.location.reload();
-        } else if (err.type !== 'network' && err.type !== 'server-error' && err.type !== 'socket-error' && err.type !== 'socket-closed') {
+        } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed' || err.message?.includes('Lost connection')) {
+             // Robust reconnect for client side network errors
+             console.warn('Client Network/Server error. Attempting reconnect...');
+             setTimeout(() => {
+                 if(peer && !peer.destroyed && peer.disconnected) peer.reconnect();
+             }, 2000);
+        } else {
              setConnectionStatus('error');
         }
     });
@@ -1267,9 +1304,10 @@ const App: React.FC = () => {
     const sortedPlayers = [...gameState.players].filter(p => !p.isHeckler).sort((a,b) => b.score - a.score);
     const heckler = gameState.players.find(p => p.isHeckler);
 
+    // Auf Desktop: Breite von w-80 auf w-96 erhöht
     const containerClasses = isMobile 
         ? "lg:hidden mt-8 mb-24 w-full animate-fade-in-up" 
-        : "hidden lg:block w-80 flex-shrink-0 animate-fade-in-right sticky top-6 h-[calc(100vh-3rem)] overflow-hidden";
+        : "hidden lg:block w-96 flex-shrink-0 animate-fade-in-right sticky top-6 h-[calc(100vh-3rem)] overflow-hidden";
 
     return (
       <div className={containerClasses}>
@@ -1280,40 +1318,45 @@ const App: React.FC = () => {
              
              <div className={`space-y-2 flex-1 custom-scrollbar pr-2 ${!isMobile ? 'overflow-y-auto' : ''}`}>
                  {sortedPlayers.map((p, i) => (
-                     <div key={p.id} className={`flex items-center justify-between p-2 rounded-lg border ${p.id === localPlayerId ? 'bg-brand-accent/10 border-brand-accent' : 'bg-transparent border-white/5'}`}>
-                         <div className="flex items-center gap-3">
-                             <div className={`w-5 text-center text-xs font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}`}>{i+1}.</div>
-                             <Avatar avatar={p.avatar} size="xs" />
-                             <div className="flex flex-col">
-                                 <span className={`text-sm font-bold truncate max-w-[100px] ${p.id === localPlayerId ? 'text-brand-accent' : 'text-white'}`}>{p.name}</span>
+                     <div key={p.id} className={`flex items-center p-2 rounded-lg border ${p.id === localPlayerId ? 'bg-brand-accent/10 border-brand-accent' : 'bg-transparent border-white/5'}`}>
+                         {/* LEFT SIDE: Rank, Avatar, Name (Flexible Width) */}
+                         <div className="flex items-center gap-3 flex-1 min-w-0">
+                             <div className={`w-6 text-center text-xs font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'} flex-shrink-0`}>{i+1}.</div>
+                             <Avatar avatar={p.avatar} size="xs" className="flex-shrink-0" />
+                             <div className="flex flex-col min-w-0">
+                                 <span className={`text-sm font-bold truncate ${p.id === localPlayerId ? 'text-brand-accent' : 'text-white'}`}>{p.name}</span>
                                  {p.id === gameState.gameMasterId && (
                                      <span className="text-[9px] bg-purple-500/30 text-purple-300 px-1 rounded flex items-center gap-1 w-fit"><Crown size={8}/> GM</span>
                                  )}
                              </div>
                          </div>
-                         <div className="flex items-center gap-2">
-                             <div className="flex flex-col items-center">
-                                <span className="font-mono font-bold text-lg mb-1">{p.score}</span>
-                                {isHost && (
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: -1 } }) }}
-                                            className="w-9 h-9 flex items-center justify-center bg-red-500/20 hover:bg-red-500/50 rounded-lg text-red-300 transition-colors border border-red-500/30"
-                                            title="-1 Punkt"
-                                        >
-                                            <Minus size={16} strokeWidth={3} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: 1 } }) }}
-                                            className="w-9 h-9 flex items-center justify-center bg-green-500/20 hover:bg-green-500/50 rounded-lg text-green-300 transition-colors border border-green-500/30"
-                                            title="+1 Punkt"
-                                        >
-                                            <Plus size={16} strokeWidth={3} />
-                                        </button>
-                                    </div>
-                                )}
-                             </div>
+
+                         {/* RIGHT SIDE: Score & Controls (Fixed Width) */}
+                         <div className="flex items-center gap-3 shrink-0 ml-2">
+                             {/* Score */}
+                             <div className="font-mono font-bold text-xl w-10 text-center">{p.score}</div>
                              
+                             {/* Score Controls - Fixed Container for vertical alignment */}
+                             {isHost && (
+                                <div className="flex flex-col gap-1 w-8 items-center">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: 1 } }) }}
+                                        className="w-8 h-6 flex items-center justify-center bg-green-500/20 hover:bg-green-500/50 rounded text-green-300 transition-colors border border-green-500/30 active:scale-95"
+                                        title="+1 Punkt"
+                                    >
+                                        <Plus size={12} strokeWidth={4} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MANAGE_SCORE', payload: { playerId: p.id, amount: -1 } }) }}
+                                        className="w-8 h-6 flex items-center justify-center bg-red-500/20 hover:bg-red-500/50 rounded text-red-300 transition-colors border border-red-500/30 active:scale-95"
+                                        title="-1 Punkt"
+                                    >
+                                        <Minus size={12} strokeWidth={4} />
+                                    </button>
+                                </div>
+                             )}
+                             
+                             {/* Kick Button or Spacer */}
                              {isHost && (
                                 p.id !== localPlayerId ? (
                                     <button 
@@ -1324,14 +1367,14 @@ const App: React.FC = () => {
                                               dispatch({ type: 'REMOVE_PLAYER', payload: { playerId: p.id } });
                                           }
                                       }}
-                                      className="relative z-20 p-2 ml-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all"
+                                      className="relative z-20 w-8 h-8 p-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-lg transition-all flex items-center justify-center"
                                       title="Spieler kicken"
                                     >
                                        <UserX size={16} />
                                     </button>
                                 ) : (
                                     // Spacer damit die Buttons ausgerichtet bleiben
-                                    <div className="w-[34px] ml-1" aria-hidden="true" />
+                                    <div className="w-8" aria-hidden="true" />
                                 )
                              )}
                          </div>

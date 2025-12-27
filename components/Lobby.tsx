@@ -4,13 +4,13 @@ import { Player, AVATAR_IMAGES, HP_AVATAR_IMAGES, BotPersonality, GameMode } fro
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
-import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle, Wand2, ZoomIn } from 'lucide-react';
+import { Play, Crown, Loader2, Users, Monitor, Smartphone, Check, UserX, Lock, BrainCircuit, Baby, GraduationCap, PartyPopper, X, ToggleLeft, ToggleRight, Sparkles, Ghost, Repeat, User, HelpCircle, Wand2, ZoomIn, KeyRound } from 'lucide-react';
 
 interface LobbyProps {
   players: Player[];
   localPlayerId: string | null;
   onJoin: (name: string, roomCode: string, avatar: string) => void;
-  onCreate: (name: string, avatar: string) => void;
+  onCreate: (name: string, avatar: string, isSuperAdmin: boolean) => void;
   onStartGame: (mode: GameMode) => void;
   onRemovePlayer?: (playerId: string) => void;
   onUpdatePlayer?: (updates: { avatar?: string }) => void;
@@ -43,6 +43,7 @@ export const Lobby: React.FC<LobbyProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [adminCode, setAdminCode] = useState(''); // Neuer State für Admin Code
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_IMAGES[0]);
   const [view, setView] = useState<'main' | 'join' | 'create'>('main');
   const [showBotModal, setShowBotModal] = useState(false);
@@ -81,9 +82,6 @@ export const Lobby: React.FC<LobbyProps> = ({
       const newVal = !isHPMode; 
       setIsHPMode(newVal);
       onToggleHPMode?.(newVal);
-      // NOTE: We do NOT open the modal here anymore for the host manually.
-      // We rely on the useEffect above which listens to the prop change coming back from the server.
-      // This ensures consistency.
   };
 
   // Zufällige Auswahl von Avataren initialisieren
@@ -336,13 +334,32 @@ export const Lobby: React.FC<LobbyProps> = ({
                 className="w-full px-4 py-2.5 sm:py-3 rounded-xl bg-purple-950/50 border border-purple-500 text-white placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
+
+            {/* Admin Code Input for Creating Game */}
+            {view === 'create' && (
+              <div className="space-y-1 sm:space-y-2">
+                <label className="text-xs font-medium text-purple-300 flex items-center gap-1">
+                    <KeyRound size={12} /> Admin Code (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  placeholder="Code für volle Rechte"
+                  className="w-full px-4 py-2 rounded-xl bg-purple-950/30 border border-purple-500/50 text-white placeholder-purple-500/50 text-sm focus:outline-none focus:ring-1 focus:ring-brand-accent"
+                />
+              </div>
+            )}
             
             {/* Große, zufällige Auswahl (mit Long Press, nur 9 Items für 3x3) */}
             {renderAvatarPicker(selectedAvatar, setSelectedAvatar, [], randomAvatars, true)}
 
             <Button 
               fullWidth 
-              onClick={() => view === 'create' ? onCreate(name, selectedAvatar) : onJoin(name, joinCode, selectedAvatar)} 
+              onClick={() => view === 'create' 
+                ? onCreate(name, selectedAvatar, adminCode === '0824') 
+                : onJoin(name, joinCode, selectedAvatar)
+              } 
               disabled={!name.trim() || (view === 'join' && joinCode.length !== 4) || connectionStatus === 'connecting'}
             >
               {connectionStatus === 'connecting' ? <Loader2 className="animate-spin mx-auto" /> : (view === 'create' ? 'Lobby öffnen' : 'Beitreten')}
@@ -432,17 +449,21 @@ export const Lobby: React.FC<LobbyProps> = ({
                 <Card title="Spiel-Einstellungen">
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
-                            <Button variant="secondary" onClick={() => setShowBotModal(true)} fullWidth className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10">
-                                <BrainCircuit size={16} className="mr-2 inline" /> KI-Bot
-                            </Button>
+                            {/* Nur anzeigen wenn SuperAdmin (Code 0824) */}
+                            {currentPlayer?.isSuperAdmin && (
+                                <Button variant="secondary" onClick={() => setShowBotModal(true)} fullWidth className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10">
+                                    <BrainCircuit size={16} className="mr-2 inline" /> KI-Bot
+                                </Button>
+                            )}
+                            
                             {onToggleRules && (
-                                <Button variant="secondary" onClick={() => onToggleRules(true)} className="text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10 px-4">
+                                <Button variant="secondary" onClick={() => onToggleRules(true)} className={`text-xs py-2 bg-white/5 border-white/20 hover:bg-white/10 px-4 ${!currentPlayer?.isSuperAdmin ? 'col-span-2 w-full' : ''}`}>
                                     <HelpCircle size={16} className="mr-2 inline" /> Regeln
                                 </Button>
                             )}
                         </div>
 
-                        {/* Troll Modus Toggle */}
+                        {/* Troll Modus Toggle (Für ALLE Hosts sichtbar) */}
                         <div 
                         onClick={() => onToggleTrollMode?.(!isTrollModeActive)}
                         className={`

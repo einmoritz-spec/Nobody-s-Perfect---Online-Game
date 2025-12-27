@@ -37,6 +37,9 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
   const second = sorted[1];
   const third = sorted[2];
 
+  // Identifiziere den Letzten für den Roast-Dateinamen
+  const loser = sorted.length > 0 ? sorted[sorted.length - 1] : null;
+
   useEffect(() => {
     const duration = 3000;
     const end = Date.now() + duration;
@@ -71,7 +74,30 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
               backgroundColor: transparent ? null : '#2e1065', // Brand dark background for board, transparent for roast
               scale: 2,
               useCORS: true,
-              logging: false
+              logging: false,
+              windowWidth: 1600, // TRICK: Simuliere Desktop-Breite, damit Tailwind 'md:' Klassen greifen (Treppchen statt Liste)
+              onclone: (clonedDoc) => {
+                  // Leaderboard fix
+                  const clonedBoard = clonedDoc.getElementById('leaderboard-capture-root');
+                  if (clonedBoard) {
+                      clonedBoard.style.width = '1000px';
+                      clonedBoard.style.padding = '40px';
+                      clonedBoard.style.margin = '0 auto';
+                  }
+                  
+                  // Hide Save Buttons in clone
+                  const btns = clonedDoc.querySelectorAll('button[id$="-save-btn"], .save-btn-class');
+                  btns.forEach((btn: any) => btn.style.display = 'none');
+
+                  // Namen Fix: Entferne Truncate und Shadow für saubere Darstellung im Bild
+                  const names = clonedDoc.querySelectorAll('.player-name-label');
+                  names.forEach((el: any) => {
+                      el.classList.remove('truncate', 'drop-shadow-md');
+                      el.style.whiteSpace = 'nowrap';
+                      el.style.overflow = 'visible';
+                      el.style.maxWidth = 'none';
+                  });
+              }
           });
           const link = document.createElement('a');
           link.download = filename;
@@ -83,6 +109,16 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
       } finally {
           setSaving(false);
       }
+  };
+
+  const handleSaveLeaderboard = () => {
+    const date = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    capture(leaderboardRef.current, `Siegerehrung ${date}.png`, setIsSavingBoard, false);
+  };
+
+  const handleSaveRoast = () => {
+    const name = loser ? loser.name : 'Niemand';
+    capture(roastRef.current, `${name} wird geroastet.png`, setIsSavingRoast, true);
   };
 
   return (
@@ -102,8 +138,8 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
         <div className="flex justify-center mt-4">
             <Button 
                 variant="secondary" 
-                onClick={() => capture(leaderboardRef.current, 'siegerehrung.png', setIsSavingBoard, false)}
-                className="text-xs py-2 px-4 flex items-center gap-2"
+                onClick={handleSaveLeaderboard}
+                className="text-xs py-2 px-4 flex items-center gap-2 save-btn-class"
                 disabled={isSavingBoard}
             >
                 {isSavingBoard ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -115,7 +151,8 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
       <div className="flex flex-col lg:flex-row items-start gap-8 md:gap-12">
         
         {/* LEADERBOARD BEREICH (Ref Wrapper) */}
-        <div className="flex-1 w-full order-2 lg:order-1 p-4 rounded-3xl" ref={leaderboardRef}>
+        {/* ID 'leaderboard-capture-root' hinzugefügt für html2canvas targeting */}
+        <div id="leaderboard-capture-root" className="flex-1 w-full order-2 lg:order-1 p-4 rounded-3xl" ref={leaderboardRef}>
           {/* Podium - Responsive Layout - Added mt-6 md:mt-16 to prevent crown overlap */}
           <div className="grid grid-cols-2 md:flex md:flex-row md:items-end md:justify-center gap-4 md:gap-0 mb-16 md:h-96 mt-6 md:mt-16">
             
@@ -126,7 +163,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                   <div className="flex justify-center mb-2">
                      <Avatar avatar={second.avatar} name={second.name} size="xl" className="border-4 border-gray-300 shadow-lg" />
                   </div>
-                  <p className="font-bold text-lg mt-1 truncate max-w-[150px] text-white">{second.name}</p>
+                  <p className="player-name-label font-bold text-lg mt-1 truncate max-w-[150px] text-white">{second.name}</p>
                   <p className="text-sm text-purple-300 font-bold">{second.score} Pkt.</p>
                 </div>
                 <div className="w-full bg-gradient-to-t from-gray-700 to-gray-500 rounded-t-2xl h-24 md:h-32 flex items-center justify-center border-t-4 border-gray-400 shadow-lg">
@@ -143,7 +180,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                     <Crown size={32} className="absolute -top-6 text-yellow-400 animate-bounce-short" />
                     <Avatar avatar={first.avatar} name={first.name} size="2xl" className="border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.5)] mb-2" />
                   </div>
-                  <p className="font-black text-2xl mt-1 text-white truncate max-w-[200px] drop-shadow-md">{first.name}</p>
+                  <p className="player-name-label font-black text-2xl mt-1 text-white truncate max-w-[200px] drop-shadow-md">{first.name}</p>
                   <p className="text-lg text-brand-accent font-black">{first.score} Pkt.</p>
                 </div>
                 <div className="w-full bg-gradient-to-t from-yellow-700 via-yellow-500 to-yellow-400 rounded-t-2xl h-32 md:h-48 flex items-center justify-center border-t-4 border-yellow-300 shadow-[0_-10px_40px_rgba(245,158,11,0.3)]">
@@ -159,7 +196,7 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                   <div className="flex justify-center mb-2">
                      <Avatar avatar={third.avatar} name={third.name} size="xl" className="border-4 border-amber-600 shadow-lg" />
                   </div>
-                  <p className="font-bold text-lg mt-1 truncate max-w-[150px] text-white">{third.name}</p>
+                  <p className="player-name-label font-bold text-lg mt-1 truncate max-w-[150px] text-white">{third.name}</p>
                   <p className="text-sm text-purple-300 font-bold">{third.score} Pkt.</p>
                 </div>
                 <div className="w-full bg-gradient-to-t from-amber-800 to-amber-600 rounded-t-2xl h-16 md:h-24 flex items-center justify-center border-t-4 border-amber-500 shadow-lg">
@@ -204,7 +241,8 @@ export const FinalLeaderboard: React.FC<FinalLeaderboardProps> = ({ players, onR
                
                 {/* Save Roast Button */}
                 <button 
-                    onClick={() => capture(roastRef.current, 'final-roast.png', setIsSavingRoast, true)}
+                    id="final-roast-save-btn"
+                    onClick={handleSaveRoast}
                     className="absolute top-2 right-2 p-1.5 bg-pink-900/50 hover:bg-pink-800 text-pink-300 rounded-full transition-colors border border-pink-500/30"
                     title="Kommentar speichern"
                     disabled={isSavingRoast}

@@ -1,5 +1,4 @@
 
-
 export type PlayerId = string;
 
 export type BotPersonality = 'beginner' | 'pro' | 'troll';
@@ -15,6 +14,7 @@ export interface Player {
   isBot?: boolean;
   botPersonality?: BotPersonality;
   isHeckler?: boolean; // Neuer Flag für den reinen Zuschauer-Troll
+  isSuperAdmin?: boolean; // Flag für volle Host-Rechte (Bots hinzufügen)
 }
 
 // Monster Avatar URLs

@@ -164,12 +164,58 @@ export const Resolution: React.FC<ResolutionProps> = ({
     setIsSavingRoast(true);
     try {
         const canvas = await html2canvas(roastRef.current, {
-            backgroundColor: null, // Transparent background
+            backgroundColor: null, // Transparent background to keep bubble shape
             scale: 2, // Better resolution
-            useCORS: true
+            useCORS: true,
+            // WICHTIG: Klonen, um den Save-Button im Bild zu entfernen und Schatten zu bereinigen
+            onclone: (clonedDoc) => {
+                // Button entfernen
+                const btn = clonedDoc.getElementById('roast-save-btn');
+                if (btn) btn.style.display = 'none';
+                
+                // Schatten entfernen (verursacht den "grauen Kasten" bei Transparenz)
+                const bubble = clonedDoc.getElementById('roast-content-bubble');
+                if (bubble) {
+                    bubble.classList.remove('shadow-2xl');
+                    bubble.style.boxShadow = 'none';
+                }
+                
+                // Avatar Schatten entfernen
+                const avatarContainer = clonedDoc.querySelector('.roast-avatar-container');
+                if (avatarContainer) {
+                    // Falls die Avatar Komponente Schatten hat, versuchen wir sie hier zu resetten
+                    const imgDiv = avatarContainer.querySelector('div');
+                    if (imgDiv) {
+                        imgDiv.classList.remove('shadow-xl');
+                        imgDiv.style.boxShadow = 'none';
+                    }
+                }
+
+                // FIX: Rosa Hintergrund-Boxen entfernen, um Artefakte und Verschiebungen zu vermeiden
+                
+                // 1. Text-Highlight unten ("der peinlichste Squib...")
+                const highlights = clonedDoc.querySelectorAll('strong');
+                highlights.forEach((el: any) => {
+                    el.style.backgroundColor = 'transparent'; // Mache Background transparent
+                    el.style.padding = '0';
+                    // Textfarbe bleibt erhalten
+                });
+
+                // 2. Namens-Tag oben ("TROLL TORBEN")
+                const nameTags = clonedDoc.querySelectorAll('.roast-name-tag');
+                nameTags.forEach((el: any) => {
+                    el.style.backgroundColor = 'transparent'; // Mache Background transparent
+                    el.style.paddingLeft = '0';
+                    el.style.paddingRight = '0';
+                    // Textfarbe bleibt erhalten
+                });
+            }
         });
+        
         const link = document.createElement('a');
-        link.download = `roast-${roastData?.targetName || 'troll'}.png`;
+        const targetName = roastData?.targetName || 'Jemand';
+        // Dateiname angepasst: "Spielername wird geroastet.png"
+        link.download = `${targetName} wird geroastet.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     } catch (e) {
@@ -216,6 +262,7 @@ export const Resolution: React.FC<ResolutionProps> = ({
       const parts = text.split(/(\*\*.*?\*\*)/g);
       return parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
+          // Klasse angepasst für saubereren Look
           return <strong key={i} className="font-black text-pink-700 bg-pink-100/50 px-1 rounded">{part.slice(2, -2)}</strong>;
         }
         return part;
@@ -249,19 +296,24 @@ export const Resolution: React.FC<ResolutionProps> = ({
 
       {showRoast && botRoaster && (
           <div ref={roastRef} className="my-6 flex gap-4 items-start animate-fade-in-up z-30 relative scroll-mt-20 max-w-2xl mx-auto p-2">
-            <div className="flex-shrink-0 pt-2">
+            <div className="flex-shrink-0 pt-2 roast-avatar-container">
                 <Avatar avatar={botRoaster.avatar} name={botRoaster.name} size="lg" className="border-4 border-pink-500 shadow-xl" />
             </div>
             
             {/* Sprechblase */}
             <div 
+                id="roast-content-bubble"
                 ref={roastContentRef}
-                className="relative bg-white text-brand-dark p-5 rounded-2xl shadow-2xl flex-1 border-2 border-pink-500 before:content-[''] before:absolute before:top-6 before:-left-3 before:w-0 before:h-0 before:border-t-[10px] before:border-t-transparent before:border-r-[12px] before:border-r-pink-500 before:border-b-[10px] before:border-b-transparent"
+                className="relative bg-white text-brand-dark p-5 rounded-2xl shadow-2xl flex-1 border-2 border-pink-500 
+                before:content-[''] before:absolute before:top-6 before:-left-[12px] before:w-0 before:h-0 
+                before:border-t-[10px] before:border-t-transparent before:border-r-[12px] before:border-r-pink-500 before:border-b-[10px] before:border-b-transparent"
             >
-                <div className="absolute top-6 -left-[9px] w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-white border-b-[8px] border-b-transparent z-10"></div>
+                {/* Weißes Dreieck zum Überdecken der Linie für nahtlosen Look, angepasst für vertikale Zentrierung und Rahmenstärke */}
+                <div className="absolute top-[26px] -left-[10px] w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-white border-b-[8px] border-b-transparent z-10"></div>
                 
                 {/* Save Button absolute in top right of bubble */}
                 <button 
+                    id="roast-save-btn"
                     onClick={handleSaveRoast}
                     className="absolute top-2 right-2 p-1.5 bg-gray-100 hover:bg-pink-100 text-pink-500 rounded-full transition-colors shadow-sm"
                     title="Als Bild speichern"
@@ -270,10 +322,12 @@ export const Resolution: React.FC<ResolutionProps> = ({
                     {isSavingRoast ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 </button>
 
-                <p className="font-bold text-xs mb-2 text-pink-600 uppercase tracking-wide flex items-center gap-2 pr-6">
-                  <span className="bg-pink-100 px-2 py-0.5 rounded-full">{botRoaster.name}</span>
-                   roastet {roastData!.targetName}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-xs mb-3 text-pink-600 uppercase tracking-wide pr-8">
+                  {/* Added class 'roast-name-tag' for selection in html2canvas */}
+                  <span className="roast-name-tag bg-pink-100 px-2 py-1 rounded-md whitespace-nowrap">{botRoaster.name}</span>
+                  <span>roastet {roastData!.targetName}</span>
+                </div>
+                
                 <p className="text-lg font-serif italic leading-relaxed text-gray-800">
                   "{renderRoastText(roastData!.text)}"
                 </p>
