@@ -103,6 +103,7 @@ export interface GameState {
   timerDuration: number | null; // Gesamtdauer des Timers für Progress Bar
   showRules: boolean; // Zeigt das Regelfenster für alle an
   isHarryPotterMode?: boolean; // Neuer Harry Potter Modus Flag
+  usedQuestions: string[]; // NEU: Liste der bereits gestellten Fragen
   roastData?: {
     targetName: string;
     botName: string;

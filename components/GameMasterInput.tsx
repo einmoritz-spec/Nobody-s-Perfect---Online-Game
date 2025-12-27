@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { Button } from './ui/Button';
@@ -12,9 +11,10 @@ interface GameMasterInputProps {
   onSubmit: (question: string, correctAnswer: string, gmFake: string, category: string) => void;
   isHost: boolean;
   isHarryPotterMode?: boolean; // Neu
+  usedQuestions?: string[]; // Neu: Liste der bereits gestellten Fragen
 }
 
-export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, onSubmit, isHost, isHarryPotterMode }) => {
+export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, onSubmit, isHost, isHarryPotterMode, usedQuestions = [] }) => {
   const [question, setQuestion] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [gmFake, setGmFake] = useState('');
@@ -38,8 +38,15 @@ export const GameMasterInput: React.FC<GameMasterInputProps> = ({ gameMaster, on
         pool = QUESTIONS[category] || QUESTIONS.words;
     }
     
-    const randomIdx = Math.floor(Math.random() * pool.length);
-    const q = pool[randomIdx];
+    // Filter out used questions
+    const availablePool = pool.filter(item => !usedQuestions.includes(item.q));
+    
+    // If all questions used, fallback to full pool (or handle otherwise)
+    const poolToUse = availablePool.length > 0 ? availablePool : pool;
+    
+    const randomIdx = Math.floor(Math.random() * poolToUse.length);
+    const q = poolToUse[randomIdx];
+    
     setQuestion(q.q);
     setCorrectAnswer(q.a);
     setGmFake('');

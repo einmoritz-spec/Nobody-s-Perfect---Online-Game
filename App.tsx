@@ -115,6 +115,7 @@ const INITIAL_STATE: GameState = {
   timerDuration: null,
   showRules: false,
   isHarryPotterMode: false, // Default aus
+  usedQuestions: [], // NEU: Initiale Liste der benutzten Fragen
   history: [],
   finalRoast: null
 };
@@ -215,7 +216,12 @@ const App: React.FC = () => {
             const { roomCode: rc, state } = JSON.parse(recovery);
             if (rc === savedCode) {
               // Stelle sicher, dass showRules existiert (falls altes State-Objekt geladen wird)
-              const safeState = { ...INITIAL_STATE, ...state, showRules: state.showRules || false };
+              const safeState = { 
+                  ...INITIAL_STATE, 
+                  ...state, 
+                  showRules: state.showRules || false,
+                  usedQuestions: state.usedQuestions || [] // Ensure backward compatibility
+              };
               setGameState(safeState);
               recreateHost(savedCode, id, name, avatar);
               return;
@@ -566,7 +572,22 @@ const App: React.FC = () => {
       case 'SUBMIT_GM': {
         const parts = state.players.filter(p => p.id !== state.gameMasterId && !p.isHeckler && !p.isBot).map(p => p.id);
         const bots = state.players.filter(p => p.isBot && !p.isHeckler).map(p => p.id);
-        return { ...state, phase: GamePhase.PLAYER_INPUT, question: action.payload.question, correctAnswerText: action.payload.correct, gmFakeAnswer: action.payload.fake, category: action.payload.category, submittedAnswers: [], participantIds: [...parts, ...bots], votes: {}, roastData: null, timerEndTime: null, timerDuration: null };
+        return { 
+            ...state, 
+            phase: GamePhase.PLAYER_INPUT, 
+            question: action.payload.question, 
+            correctAnswerText: action.payload.correct, 
+            gmFakeAnswer: action.payload.fake, 
+            category: action.payload.category, 
+            submittedAnswers: [], 
+            participantIds: [...parts, ...bots], 
+            votes: {}, 
+            roastData: null, 
+            timerEndTime: null, 
+            timerDuration: null,
+            // NEU: Frage als benutzt markieren
+            usedQuestions: [...state.usedQuestions, action.payload.question]
+        };
       }
       case 'SUBMIT_FAKE': {
         if (state.submittedAnswers.some(a => a.authorId === action.payload.playerId)) return state;
@@ -703,12 +724,18 @@ const App: React.FC = () => {
     setIsAiLoading(true);
     const cat = CATEGORIES.find(c => c.id === categoryInput) || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
     const isHP = gameStateRef.current.isHarryPotterMode;
+    const usedQuestions = gameStateRef.current.usedQuestions || [];
 
     // Wenn HP Modus UND kein Troll: Nutze direkt den Pool, statt KI zu fragen
     if (isHP && personality !== 'troll') {
        // Wähle Pool basierend auf Personality
-       const pool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
-       const randomQ = pool[Math.floor(Math.random() * pool.length)];
+       const fullPool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
+       // Filter benutzte Fragen
+       const availablePool = fullPool.filter(item => !usedQuestions.includes(item.q));
+       // Wenn alle Fragen benutzt wurden, nutze wieder alle
+       const poolToUse = availablePool.length > 0 ? availablePool : fullPool;
+
+       const randomQ = poolToUse[Math.floor(Math.random() * poolToUse.length)];
        
        setIsAiLoading(false);
        return { 
@@ -721,14 +748,19 @@ const App: React.FC = () => {
     // Fallback Funktion (für andere Modi oder Fehlerfall)
     const fallback = () => {
       // Wenn es ein HP Fallback ist, wähle basierend auf Personality den Pool
-      let pool: {q: string, a: string}[] = [];
+      let fullPool: {q: string, a: string}[] = [];
       if (isHP) {
-           pool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
+           fullPool = personality === 'beginner' ? HP_QUESTIONS_EASY : HP_QUESTIONS_HARD;
       } else {
-           pool = QUESTIONS[cat.id] || QUESTIONS['words'];
+           fullPool = QUESTIONS[cat.id] || QUESTIONS['words'];
       }
       
-      const randomQ = pool[Math.floor(Math.random() * pool.length)];
+      // Filter benutzte Fragen
+      const availablePool = fullPool.filter(item => !usedQuestions.includes(item.q));
+      // Wenn alle Fragen benutzt wurden, nutze wieder alle
+      const poolToUse = availablePool.length > 0 ? availablePool : fullPool;
+
+      const randomQ = poolToUse[Math.floor(Math.random() * poolToUse.length)];
       return {
           question: randomQ.q,
           correctAnswer: cleanAnswer(randomQ.a),
@@ -1360,7 +1392,7 @@ const App: React.FC = () => {
                 (localPlayerId === gameState.gameMasterId && !isAiGm) ? (
                     <div className="space-y-4 max-w-5xl mx-auto">
                     <div className="flex justify-end"><Button variant="secondary" className="text-xs" onClick={async () => { const d = await generateAiContent("random"); dispatch({ type: 'SUBMIT_GM', payload: { question: d.question, correct: d.correctAnswer, fake: "", category: d.category } }); }} disabled={isAiLoading}>{isAiLoading ? <Loader2 className="animate-spin mr-2" /> : <Wand2 size={14} className="mr-2" />}KI-Vorschlag</Button></div>
-                    <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} isHarryPotterMode={gameState.isHarryPotterMode} />
+                    <GameMasterInput gameMaster={gm!} onSubmit={(q, a, f, c) => dispatch({ type: 'SUBMIT_GM', payload: { question: q, correct: a, fake: f, category: c } })} isHost={isHost} isHarryPotterMode={gameState.isHarryPotterMode} usedQuestions={gameState.usedQuestions} />
                     </div>
                 ) : (
                     <div className="text-center pt-20"><Avatar avatar={isAiGm ? "https://robohash.org/AI?set=set4" : (gm?.avatar || "")} size="3xl" className="mx-auto mb-6 border-8 border-brand-dark" /><h2 className="text-3xl font-bold">{isAiGm ? "KI-Monster" : gm?.name} wählt eine Frage...</h2></div>
