@@ -1490,11 +1490,11 @@ const App: React.FC = () => {
     let pool: string[] = [];
 
     if (personality === 'beginner') {
-        pool = ["Ahnungslose Anne", "Planloser Paul", "Verwirrter Volker", "Naive Nina", "Rate-Rudi"];
+        pool = ["Ahnungslose Anne", "Planloser Paul", "Verwirrter Volker", "Naive Nina", "Rate-Rudi", "Noob-Norbert", "Grünschnabel-Greta", "Zufalls-Zoe", "Pech-Peter", "Probier-Pia", "Fehler-Felix", "Dummie-Doris", "Start-Stefan", "Laien-Lars", "Basis-Berta", "Unsicherer-Uwe", "Stolper-Steffi", "Würfel-Werna", "Beginner-Ben", "Neuling-Nora"];
     } else if (personality === 'pro') {
-        pool = ["Lexikon-Lisa", "Fakten-Frank", "Wissens-Willi", "Professor Primus", "Schlaue Sarah"];
+        pool = ["Lexikon-Lisa", "Fakten-Frank", "Wissens-Willi", "Professor Primus", "Schlaue Sarah", "Brain-Basti", "Genie-Gabi", "Logik-Lukas", "Daten-Daniela", "Einstein-Emil", "Meister-Martin", "IQ-Ingo", "Checker-Can", "Allwissender-Ali", "Wikipedia-Waltraud", "Universal-Uli", "Schlauberger-Sven", "Clever-Claudia", "Experten-Egon", "Gelehrter-Gerd"];
     } else if (personality === 'troll') {
-        pool = ["Chaos-Caspar", "Troll-Torben", "Witz-Walter", "Spam-Susi", "Joker-Jonas"];
+        pool = ["Chaos-Caspar", "Troll-Torben", "Witz-Walter", "Spam-Susi", "Joker-Jonas", "Quatsch-Quentin", "Blödel-Bernd", "Meme-Marcel", "Prank-Paula", "Fake-News-Fritz", "Nerv-Nora", "Sabotage-Sabine", "Lügen-Lutz", "Scherz-Keks-Kevin", "Unfug-Ute", "Trickser-Tim", "Gag-Günther", "Rage-Ralf", "Fail-Franzi", "Mogel-Moritz"];
     } else {
         pool = ["Bluff-Boris", "Rate-Ralf", "Schlau-Schlumpf", "Mogel-Moritz"];
     }
