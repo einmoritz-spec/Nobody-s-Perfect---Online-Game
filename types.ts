@@ -83,7 +83,12 @@ export const HP_AVATAR_IMAGES = [
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_34.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_35.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_36.jpg",
-  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_37.jpg"
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_37.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_38.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_39.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_40.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_41.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_42.jpg"
 ];
 
 export enum GamePhase {
