@@ -109,8 +109,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   useEffect(() => {
     if (randomHpAvatars.length === 0) {
         const shuffled = [...HP_AVATAR_IMAGES].sort(() => 0.5 - Math.random());
-        // 9 Avatare für perfektes 3x3 Grid
-        setRandomHpAvatars(shuffled.slice(0, 9));
+        // 10 Avatare für HP Modus (damit es im 2er Grid aufgeht)
+        setRandomHpAvatars(shuffled.slice(0, 10));
     }
   }, []);
 
@@ -233,7 +233,8 @@ export const Lobby: React.FC<LobbyProps> = ({
     takenColors: string[] = [], 
     availableAvatars: string[] = AVATAR_IMAGES,
     isLargeMode: boolean = false,
-    hideLabels: boolean = false // Neuer Parameter
+    hideLabels: boolean = false, // Neuer Parameter
+    customGridClass?: string // NEW: Override Grid Class
   ) => (
     <div className="space-y-3 relative">
       
@@ -267,10 +268,11 @@ export const Lobby: React.FC<LobbyProps> = ({
       
       <div className={`
         grid p-1
-        ${isLargeMode 
-            ? 'grid-cols-3 gap-3 sm:gap-5' // 3 Spalten für viel größere Bilder im HP Modus / Create Modus
+        ${customGridClass ? customGridClass : (
+            isLargeMode 
+            ? 'grid-cols-3 gap-3 sm:gap-5' // Standard 3x3 für Setup
             : 'grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar'
-        }
+        )}
       `}>
         {availableAvatars.map((imgUrl) => {
           const isTaken = takenColors.includes(imgUrl) && imgUrl !== currentSelection;
@@ -398,7 +400,7 @@ export const Lobby: React.FC<LobbyProps> = ({
       {/* HP AVATAR SELECTION MODAL */}
       {showHpAvatarSelection && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-             <div className="bg-[#2a1b3d] border-4 border-amber-500 rounded-3xl w-full max-w-2xl shadow-[0_0_60px_rgba(245,158,11,0.3)] relative overflow-hidden">
+             <div className="bg-[#2a1b3d] border-4 border-amber-500 rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-y-auto custom-scrollbar shadow-[0_0_60px_rgba(245,158,11,0.3)] relative">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-700 via-amber-400 to-amber-700"></div>
                 
                 <div className="p-6 text-center">
@@ -416,9 +418,10 @@ export const Lobby: React.FC<LobbyProps> = ({
                                     setShowHpAvatarSelection(false);
                                 },
                                 players.map(p => p.avatar), // Zeige bereits vergebene an
-                                randomHpAvatars, // ÄNDERUNG: Host sieht hier auch nur 9 zufällige!
+                                randomHpAvatars, // ÄNDERUNG: Host sieht hier auch nur zufällige!
                                 true, // Large Mode
-                                true // Hide Labels
+                                true, // Hide Labels
+                                "grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-5" // CUSTOM GRID CLASS (2 Cols Mobile for HP)
                             )}
                         </div>
                    )}
@@ -446,7 +449,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                     <div className="">
                         {/* 
                             LOGIC CHANGE: 
-                            - HP Mode: Host sieht hier ALLE (HP_AVATAR_IMAGES), Spieler nur 9 zufällige
+                            - HP Mode: Host sieht hier ALLE (HP_AVATAR_IMAGES), Spieler nur zufällige
                             - Host: Alle Monster Bilder (wenn nicht HP Mode).
                             - Normaler Spieler: Nur die 9 zufälligen (randomAvatars), die beim Joinen generiert wurden.
                         */}
