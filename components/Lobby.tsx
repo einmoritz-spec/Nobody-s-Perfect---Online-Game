@@ -50,6 +50,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
   const [isHPMode, setIsHPMode] = useState(false);
   const [randomAvatars, setRandomAvatars] = useState<string[]>([]);
+  const [randomHpAvatars, setRandomHpAvatars] = useState<string[]>([]); // New State for Random HP Selection
   
   // Neuer State für das HP Avatar Popup
   const [showHpAvatarSelection, setShowHpAvatarSelection] = useState(false);
@@ -84,7 +85,7 @@ export const Lobby: React.FC<LobbyProps> = ({
       onToggleHPMode?.(newVal);
   };
 
-  // Zufällige Auswahl von Avataren initialisieren
+  // Zufällige Auswahl von Avataren initialisieren (Monsters)
   useEffect(() => {
     // Generiere Avatare, wenn wir im Setup sind ODER wenn noch keine da sind (z.B. nach Reload im Spiel)
     if (view === 'create' || view === 'join' || randomAvatars.length === 0) {
@@ -104,11 +105,20 @@ export const Lobby: React.FC<LobbyProps> = ({
     }
   }, [view]);
 
+  // Zufällige Auswahl von Avataren initialisieren (Harry Potter)
+  useEffect(() => {
+    if (randomHpAvatars.length === 0) {
+        const shuffled = [...HP_AVATAR_IMAGES].sort(() => 0.5 - Math.random());
+        // 9 Avatare für perfektes 3x3 Grid
+        setRandomHpAvatars(shuffled.slice(0, 9));
+    }
+  }, []);
+
   // --- Long Press Logic ---
   const handlePressStart = (avatarUrl: string) => {
     pressTimer.current = setTimeout(() => {
       setPreviewAvatar(avatarUrl);
-    }, 300); // Nach 300ms gedrückt halten geht die Vorschau auf
+    }, 400); // Nach 400ms gedrückt halten geht die Vorschau auf
   };
 
   const handlePressEnd = () => {
@@ -116,7 +126,8 @@ export const Lobby: React.FC<LobbyProps> = ({
       clearTimeout(pressTimer.current);
       pressTimer.current = null;
     }
-    setPreviewAvatar(null);
+    // WICHTIG: Vorschau NICHT schließen beim Loslassen. Nur Timer resetten.
+    // Schließen erfolgt explizit über den X-Button oder Klick auf Overlay.
   };
 
   // --- BOT SELECTION MODAL ---
@@ -228,16 +239,21 @@ export const Lobby: React.FC<LobbyProps> = ({
       
       {/* PREVIEW OVERLAY */}
       {previewAvatar && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in" onPointerUp={handlePressEnd} onTouchEnd={handlePressEnd}>
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in p-4">
            <div className="relative">
+              <button 
+                onClick={() => setPreviewAvatar(null)}
+                className="absolute -top-12 -right-4 sm:-right-12 text-white/70 hover:text-white bg-black/50 hover:bg-black/80 rounded-full p-2 border border-white/20 transition-all z-50"
+              >
+                  <X size={32} />
+              </button>
               <img 
                 src={previewAvatar} 
                 alt="Preview" 
-                className="w-64 h-64 sm:w-80 sm:h-80 object-cover rounded-full border-4 border-brand-accent shadow-[0_0_50px_rgba(245,158,11,0.5)]" 
+                className="w-full max-w-sm sm:max-w-md aspect-square object-cover rounded-full border-4 border-brand-accent shadow-[0_0_50px_rgba(245,158,11,0.5)]" 
                 style={{ WebkitTouchCallout: 'none' }}
                 onContextMenu={(e) => e.preventDefault()}
               />
-              <div className="absolute -bottom-10 left-0 right-0 text-center text-white font-bold animate-pulse">Vorschau</div>
            </div>
         </div>
       )}
@@ -400,7 +416,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                                     setShowHpAvatarSelection(false);
                                 },
                                 players.map(p => p.avatar), // Zeige bereits vergebene an
-                                HP_AVATAR_IMAGES,
+                                randomHpAvatars, // ÄNDERUNG: Host sieht hier auch nur 9 zufällige!
                                 true, // Large Mode
                                 true // Hide Labels
                             )}
@@ -430,15 +446,17 @@ export const Lobby: React.FC<LobbyProps> = ({
                     <div className="">
                         {/* 
                             LOGIC CHANGE: 
-                            - HP Mode: Immer HP Bilder.
-                            - Host: Alle Monster Bilder.
+                            - HP Mode: Host sieht hier ALLE (HP_AVATAR_IMAGES), Spieler nur 9 zufällige
+                            - Host: Alle Monster Bilder (wenn nicht HP Mode).
                             - Normaler Spieler: Nur die 9 zufälligen (randomAvatars), die beim Joinen generiert wurden.
                         */}
                         {renderAvatarPicker(
                         currentPlayer.avatar, 
                         (newColor) => onUpdatePlayer({ avatar: newColor }), 
                         players.map(p => p.avatar),
-                        isHPMode ? HP_AVATAR_IMAGES : (isHost ? AVATAR_IMAGES : randomAvatars), 
+                        isHPMode 
+                            ? (isHost ? HP_AVATAR_IMAGES : randomHpAvatars) 
+                            : (isHost ? AVATAR_IMAGES : randomAvatars), 
                         false 
                         )}
                     </div>

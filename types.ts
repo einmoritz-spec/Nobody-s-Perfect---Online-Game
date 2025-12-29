@@ -40,7 +40,9 @@ export const AVATAR_IMAGES = [
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_19.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_20.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_21.jpg",
-  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_22.jpg"
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_22.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_23.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/Monster-Avatar-assets/main/monster_24.jpg"
 ];
 
 // Harry Potter Avatar URLs
@@ -55,7 +57,33 @@ export const HP_AVATAR_IMAGES = [
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_08.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_09.jpg",
   "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_10.jpg",
-  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_11.jpg"
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_11.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_12.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_13.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_14.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_15.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_16.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_17.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_18.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_19.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_20.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_21.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_22.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_23.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_24.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_25.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_26.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_27.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_28.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_29.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_30.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_31.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_32.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_33.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_34.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_35.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_36.jpg",
+  "https://raw.githubusercontent.com/einmoritz-spec/HP-Avatar-Assets/main/HP_37.jpg"
 ];
 
 export enum GamePhase {
